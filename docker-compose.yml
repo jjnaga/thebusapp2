@@ -5,14 +5,15 @@ services:
     image: postgres
     restart: always
     environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: the_bus
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - '5432:5432'
     networks:
       customnetwork:
         ipv4_address: 172.20.0.11
+    volumes:
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
   pgadmin:
     container_name: pgadmin4_container
     image: dpage/pgadmin4
