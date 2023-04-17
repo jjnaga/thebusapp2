@@ -188,7 +188,8 @@ const generateSQL = async (data: Array<object>, tableName: String) => {
     `;
 
       fs.writeFile(`./backend/gtfs_${tableName}.sql`, string, (err: Error) => {
-        if (err) throw new Error(`Unable to make ${tableName}.sql`);
+        if (err)
+          throw new Error(`Unable to make ${tableName}.sql: ` + err.message);
         console.log(`gtfs_${tableName}.sql created.`);
         resolve(0);
       });
@@ -221,9 +222,11 @@ const insertDataToDB = async (fileArray: Unzipped | FlateError) => {
 const databaseQuery = (pool: Pool<Client>, query: string): Promise<any[]> => {
   return new Promise(async (resolve, reject) => {
     let client = await pool.connect();
+    console.log('client made');
     await client
       .query(query)
       .then((res: QueryResult) => {
+        console.log('query done');
         client.release();
         resolve(res.rows);
       })
