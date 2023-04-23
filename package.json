@@ -24,6 +24,7 @@
     "decompress-unzip": "^4.0.1",
     "dedent-js": "^1.0.1",
     "end-of-stream": "^1.4.4",
+    "fast-xml-parser": "^4.2.0",
     "fd-slicer": "^1.1.0",
     "fflate": "^0.7.4",
     "file-to-array-buffer": "^1.0.0",
@@ -42,6 +43,7 @@
     "moment-timezone": "^0.5.41",
     "object-assign": "^4.1.1",
     "once": "^1.4.0",
+    "p-limit": "^4.0.0",
     "pend": "^1.2.0",
     "pg": "^8.9.0",
     "pg-promise": "^11.4.1",
@@ -71,6 +73,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "main": "ts-node backend/gtfs2.ts"
   },
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
