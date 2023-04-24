@@ -18,6 +18,7 @@ export type TripInfoTransaction = {
 export type TripInfo = {
   trip_id: String;
   vehicle_name: String;
+  previous_vehicle_name: String;
   vehicle_last_updated: String;
 };
 
@@ -29,7 +30,7 @@ export type TableName = {
   table_name: String;
 };
 
-type Arrival = {
+export type Arrival = {
   id: number;
   trip: number;
   route: number;
