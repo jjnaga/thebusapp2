@@ -9,7 +9,9 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-export async function query(sql: string, params?: Array<any>) {
+export async function query(sql: string, params?: Array<any>, func?: string) {
+  if (func) console.log(`Function called: ${func} `);
+
   const res = await pool.query(sql, params);
   return res;
 }

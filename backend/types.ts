@@ -1,15 +1,3 @@
-export type Bus = {
-  id: Number;
-  name: String;
-  last_updated: Date;
-  bus_needs_update: Boolean;
-};
-
-export type BusUpdateStatus = {
-  id: Number;
-  updated: Boolean;
-};
-
 export type TripInfoTransaction = {
   command: String;
   data: TripInfo;
@@ -20,14 +8,6 @@ export type TripInfo = {
   vehicle_name: String;
   previous_vehicle_name: String;
   vehicle_last_updated: String;
-};
-
-export type LastUpdate = {
-  gtfs_last_update: String;
-};
-
-export type TableName = {
-  table_name: String;
 };
 
 export type Arrival = {
@@ -50,4 +30,43 @@ export type Arrivals = {
   stop: number;
   timestamp: string;
   arrival: Array<Arrival>;
+};
+
+export type GetArrivalsJSONReturn = { stopID: string; numUpdates: number };
+
+export type VehicleAPI = {
+  timestamp: Date;
+  errorMessage?: string;
+  vehicle?: VehicleInfo[];
+};
+
+export type VehicleInfo = {
+  number: string;
+  trip: number | string;
+  driver: number;
+  latitude: number;
+  longitude: number;
+  adherence: number;
+  last_message: Date | null;
+  route_short_name: string;
+  headsign: string;
+};
+
+export type upsertBusStatus = {
+  upsertStatus: boolean;
+  vehicleNumber: string;
+};
+
+export type BusInfo = {
+  vehicleInfo?: VehicleInfo[];
+  lastUpdated: Date;
+  updateFrequency?: number;
+  inUse?: boolean;
+};
+
+export type getandInsertBusType = {
+  busNumber: string;
+  upsertStatus: boolean;
+  errorMessage?: string;
+  vehicle?: VehicleInfo[];
 };
