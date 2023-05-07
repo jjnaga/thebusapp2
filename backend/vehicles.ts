@@ -6,7 +6,7 @@ import { XMLParser } from 'fast-xml-parser';
 // import pgp from 'pg-promise';
 import moment from 'moment-timezone';
 import * as dotenv from 'dotenv';
-import { upsertBusInfoSQL } from './sql.js';
+import { updateAPICount, upsertBusInfoSQL } from './sql.js';
 
 dotenv.config();
 
@@ -37,6 +37,7 @@ const getandInsertBus = (busNumber: string): Promise<getandInsertBusType> => {
   const parser = new XMLParser();
 
   return new Promise((resolve) => {
+    updateAPICount();
     fetch(url)
       .then((res) => res.text())
       .then((xml) => parser.parse(xml))

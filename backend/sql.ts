@@ -44,3 +44,13 @@ export const getAllActiveBusses = (): Promise<any[]> => {
     return res.rows;
   });
 };
+
+export const updateAPICount = () => {
+  query(`
+    insert into api.api_hits_count 
+    values (date(timezone('HST', now())), 1)
+    on conflict("date") DO
+    update 
+    set hits = api_hits_count.hits + 1;
+  `);
+};

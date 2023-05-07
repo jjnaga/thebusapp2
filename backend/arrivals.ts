@@ -4,7 +4,7 @@ import { query, end } from './db.js';
 import { Arrivals, GetArrivalsJSONReturn, TripInfoTransaction } from './types.js';
 import pLimit from 'p-limit';
 import { XMLParser } from 'fast-xml-parser';
-import { upsertTripsInfoSQL } from './sql.js';
+import { updateAPICount, upsertTripsInfoSQL } from './sql.js';
 
 const tripsTracker = new Map();
 
@@ -58,6 +58,7 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
   const url = `http://api.thebus.org/arrivals/?key=6A9D054D-9D15-458F-95E2-38A2DC10FB85&stop=${stopID}`;
   const parser = new XMLParser();
 
+  updateAPICount();
   return fetch(url)
     .then((res) => res.text())
     .then((xml) => parser.parse(xml))
