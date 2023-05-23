@@ -2,10 +2,12 @@
 // @ts-ignore
 import('log-timestamp');
 import { BusInfo, getandInsertBusType } from './types.js';
-import moment from 'moment-timezone';
+import moment from 'moment';
 import { getAllActiveBusses } from './sql.js';
-import { updateArrivals } from './arrivals.js';
+import updateArrivals from './arrivals.js';
+import { query } from './db.js';
 import { getandInsertBus } from './vehicles.js';
+import { gtfs } from './gtfs.js';
 
 let activeBusses: { vehicle_name: string }[] = [];
 let bussesDataHash: {
@@ -14,10 +16,16 @@ let bussesDataHash: {
 
 const locks = {
   arrivalsChecked: false,
+  gtfsRunning: false,
 };
 
 const arrivals = async () => {
   const timeoutMinutes = 15;
+
+  // Make sure that when GTFS is loading, nothing else is running.
+  while (locks.gtfsRunning === true) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 
   locks.arrivalsChecked === false
     ? console.log('[main] Initializing arrivals.')
@@ -37,25 +45,44 @@ const arrivals = async () => {
   setTimeout(arrivals, timeoutMinutes * (1000 * 60));
 };
 
+const runGTFS = async () => {
+  // Get time until 2AM HST
+  let NEXT_TWO_AM_HST = moment().utc().startOf('day').add(12, 'hours');
+  const now = moment().utc();
+  if (moment(NEXT_TWO_AM_HST).isBefore(now)) NEXT_TWO_AM_HST = NEXT_TWO_AM_HST.add(1, 'days');
+  const timeoutMinutes = Math.floor(moment.duration(NEXT_TWO_AM_HST.diff(now)).asMinutes());
+
+  console.log('[main] GTFS Start.');
+  locks.gtfsRunning = true;
+  await gtfs(query);
+  console.log('[main] GTFS Done');
+  locks.gtfsRunning = false;
+
+  console.log(`[main] Next GTFS check in ${timeoutMinutes} minutes.`);
+
+  setTimeout(runGTFS, timeoutMinutes * (1000 * 60));
+};
+
 const updateBusses = async () => {
+  /** Variables */
   // in milliseconds
   const DEFAULT_UPDATE_INTERVAL = 60;
   const IN_USE_UPDATE_INTERVAL = 10;
   const NOT_FOUND_FUTURE_UPDATE = 60 * 15;
-  // in milliseconds
-
   const timeOutMilliseconds = 2000;
   let upsertCount = 0;
 
   console.log('[vehicles] Updating active busses.');
 
+  // Make sure that when GTFS is loading, nothing else is running.
   // Wait on arrivals to finish before getting bus info, otherwise there would be no active busses.
-  while (locks.arrivalsChecked === false) {
+  while (locks.gtfsRunning === true && locks.arrivalsChecked === false) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   const promises: Promise<getandInsertBusType>[] = [];
 
+  // Loop through active busses and getandInsertBus() each into a promise.
   for (let activeBus of activeBusses) {
     // If vehicleName not in hash, it's brand new just run it.
     if (!bussesDataHash.hasOwnProperty(activeBus.vehicle_name)) {
@@ -70,12 +97,19 @@ const updateBusses = async () => {
 
   let data = await Promise.all(promises);
   for (let result of data) {
+    // Unable to upsert. errorMessage gives reason, if it's 'Could not find', set the next update to a longer interval.
     if (result.upsertStatus === false) {
       console.log(`[vehicles] ${result.busNumber} - ${result.errorMessage}`);
 
       // If it cannot find the vehicle, input it into the hash with a nextUpdate in the future so it's not being
       // queried every time.
       if (result.errorMessage?.includes('Could not find')) {
+        bussesDataHash[result.busNumber] = {
+          lastUpdated: new Date(moment().add(NOT_FOUND_FUTURE_UPDATE, 'seconds').toDate()),
+        };
+      }
+
+      if (result.errorMessage === 'No active trips scheduled') {
         bussesDataHash[result.busNumber] = {
           lastUpdated: new Date(moment().add(NOT_FOUND_FUTURE_UPDATE, 'seconds').toDate()),
         };
@@ -92,32 +126,32 @@ const updateBusses = async () => {
 
     // If bus is in use, set next update to IN_USE_UPDATE_INTERVAL instead of DEFAULT_UPDATE_INTERVAL.
     // testing
+    // This is where we would implement inUse - if someone is actually looking at this bus, set the update interval
+    // to 10 seconds instead of the default.
     // if (result.inUse === true) {
-    if (result.busNumber === '963') {
-      bussesDataHash[result.busNumber] = {
-        vehicleInfo: result.vehicle!,
-        lastUpdated: moment(lastUpdated).add(IN_USE_UPDATE_INTERVAL, 'seconds').toDate(),
-      };
-    } else {
-      bussesDataHash[result.busNumber] = {
-        vehicleInfo: result.vehicle!,
-        lastUpdated: moment(lastUpdated).add(DEFAULT_UPDATE_INTERVAL, 'seconds').toDate(),
-      };
-    }
+    bussesDataHash[result.busNumber] = {
+      vehicleInfo: result.vehicle!,
+      lastUpdated: moment(lastUpdated).add(DEFAULT_UPDATE_INTERVAL, 'seconds').toDate(),
+    };
 
     upsertCount++;
   }
 
   console.log(`[vehicles] ${upsertCount} upserts.`);
-  // let timeStamp = moment()
-  //   .add(timeOutMilliseconds / 1000, 'seconds')
-  //   .format('LTS');
-  // console.log(`Next Update: ${timeStamp}`);
   setTimeout(updateBusses, timeOutMilliseconds);
 };
 
 const main = async () => {
-  console.log('Starting');
+  console.log('Starting main.ts');
+
+  locks.gtfsRunning = true;
+
+  runGTFS();
+
+  while (locks.gtfsRunning === true) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
   arrivals();
 
   // Wait on arrivals to finish before getting bus info, otherwise there would be no active busses.

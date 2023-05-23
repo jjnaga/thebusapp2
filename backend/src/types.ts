@@ -1,3 +1,6 @@
+import * as pg from 'pg';
+const { Pool, Client } = pg;
+
 export type TripInfoTransaction = {
   command: String;
   data: TripInfo;
@@ -69,4 +72,20 @@ export type getandInsertBusType = {
   upsertStatus: boolean;
   errorMessage?: string;
   vehicle?: VehicleInfo[];
+};
+
+export type DataBaseQuery = (sql: string, params?: Array<any>, func?: string) => Promise<pg.QueryResult<any>>;
+
+export type gtfsFilesUpsertData = {
+  version: string;
+  date: string;
+  link: string | undefined | URL;
+  file: string | undefined | Buffer;
+};
+
+export type gtfsUnzipPromisesType = {
+  version: string;
+  date: string;
+  status: string;
+  data?: { [fileName: string]: string };
 };

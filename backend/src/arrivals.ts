@@ -124,4 +124,4 @@ const updateArrivals = (): Promise<boolean> => {
     })
 };
 
-export { updateArrivals };
+export default updateArrivals;
