@@ -5,7 +5,7 @@ import { BusInfo, getandInsertBusType } from './types.js';
 import moment from 'moment';
 import { getAllActiveBusses } from './sql.js';
 import updateArrivals from './arrivals.js';
-import { query } from './db.js';
+import pool from './db.js';
 import { getandInsertBus } from './vehicles.js';
 import { gtfs } from './gtfs.js';
 
@@ -18,6 +18,13 @@ const locks = {
   arrivalsChecked: false,
   gtfsRunning: false,
 };
+
+/** Variables */
+// in seconds
+const BUS_UPDATE_DEFAULT_UPDATE_INTERVAL = 60;
+const IN_USE_UPDATE_INTERVAL = 10;
+const BUS_UPDATE_FUTURE_UPDATE_NOT_FOUND = 60 * 15;
+const TIME_UNTIL_NEXT_ACTIVE_BUSSES_CHECK = 2000;
 
 const arrivals = async () => {
   const timeoutMinutes = 15;
@@ -54,7 +61,7 @@ const runGTFS = async () => {
 
   console.log('[main] GTFS Start.');
   locks.gtfsRunning = true;
-  await gtfs(query);
+  await gtfs();
   console.log('[main] GTFS Done');
   locks.gtfsRunning = false;
 
@@ -64,12 +71,6 @@ const runGTFS = async () => {
 };
 
 const updateBusses = async () => {
-  /** Variables */
-  // in milliseconds
-  const DEFAULT_UPDATE_INTERVAL = 60;
-  const IN_USE_UPDATE_INTERVAL = 10;
-  const NOT_FOUND_FUTURE_UPDATE = 60 * 15;
-  const timeOutMilliseconds = 2000;
   let upsertCount = 0;
 
   console.log('[vehicles] Updating active busses.');
@@ -105,13 +106,13 @@ const updateBusses = async () => {
       // queried every time.
       if (result.errorMessage?.includes('Could not find')) {
         bussesDataHash[result.busNumber] = {
-          lastUpdated: new Date(moment().add(NOT_FOUND_FUTURE_UPDATE, 'seconds').toDate()),
+          lastUpdated: new Date(moment().add(BUS_UPDATE_FUTURE_UPDATE_NOT_FOUND, 'seconds').toDate()),
         };
       }
 
       if (result.errorMessage === 'No active trips scheduled') {
         bussesDataHash[result.busNumber] = {
-          lastUpdated: new Date(moment().add(NOT_FOUND_FUTURE_UPDATE, 'seconds').toDate()),
+          lastUpdated: new Date(moment().add(BUS_UPDATE_FUTURE_UPDATE_NOT_FOUND, 'seconds').toDate()),
         };
       }
       continue;
@@ -124,21 +125,21 @@ const updateBusses = async () => {
       if (heartbeat > lastUpdated) lastUpdated = heartbeat;
     });
 
-    // If bus is in use, set next update to IN_USE_UPDATE_INTERVAL instead of DEFAULT_UPDATE_INTERVAL.
+    // If bus is in use, set next update to IN_USE_UPDATE_INTERVAL instead of BUS_UPDATE_DEFAULT_UPDATE_INTERVAL.
     // testing
     // This is where we would implement inUse - if someone is actually looking at this bus, set the update interval
     // to 10 seconds instead of the default.
     // if (result.inUse === true) {
     bussesDataHash[result.busNumber] = {
       vehicleInfo: result.vehicle!,
-      lastUpdated: moment(lastUpdated).add(DEFAULT_UPDATE_INTERVAL, 'seconds').toDate(),
+      lastUpdated: moment(lastUpdated).add(BUS_UPDATE_DEFAULT_UPDATE_INTERVAL, 'seconds').toDate(),
     };
 
     upsertCount++;
   }
 
   console.log(`[vehicles] ${upsertCount} upserts.`);
-  setTimeout(updateBusses, timeOutMilliseconds);
+  setTimeout(updateBusses, TIME_UNTIL_NEXT_ACTIVE_BUSSES_CHECK);
 };
 
 const main = async () => {

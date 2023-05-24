@@ -1,5 +1,5 @@
 import { gtfsFilesUpsertData } from './types.js';
-import { query } from './db.js';
+import pool from './db.js';
 
 ///@ts-ignore
 export const upsertTripsInfoSQL = `
@@ -41,13 +41,13 @@ export const upsertBusInfoSQL = `
   `;
 
 export const getAllActiveBusses = (): Promise<any[]> => {
-  return query(`SELECT vehicle_name from thebus.active_busses`).then((res) => {
+  return pool.query(`SELECT vehicle_name from thebus.active_busses`).then((res) => {
     return res.rows;
   });
 };
 
 export const updateAPICount = () => {
-  query(`
+  pool.query(`
     insert into api.api_hits_count 
     values (date(timezone('HST', now())), 1)
     on conflict("date") DO

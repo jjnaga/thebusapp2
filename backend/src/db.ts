@@ -1,21 +1,14 @@
-import Pool from 'pg-pool';
+import pg from 'pg';
 
-const pool = new Pool({
+let config = {
   host: 'localhost',
   user: 'postgres',
   password: 'postgres',
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-});
+};
 
-export async function query(sql: string, params?: Array<any>, func?: string) {
-  const res = await pool.query(sql, params).catch((e) => {
-    console.error(e.stack);
-    throw new Error('Database Error. Ending.');
-  });
-  return res;
-}
+let pool = new pg.Pool(config);
+console.log('New Pool made');
 
-export function end() {
-  pool.end();
-}
+export default pool;

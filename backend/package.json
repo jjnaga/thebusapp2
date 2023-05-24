@@ -11,6 +11,7 @@
     "@types/react-dom": "18.2.4",
     "adm-zip": "^0.5.10",
     "autoprefixer": "10.4.14",
+    "axios": "^1.4.0",
     "base64-js": "^1.5.1",
     "bl": "^1.2.3",
     "buffer": "^5.7.1",
@@ -87,7 +88,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "ts-node-esm src/main.ts",
+    "start": "ts-node-esm src/main.ts 2>&1 | tee main.log",
     "lint": "next lint",
     "backend": "ts-node backend/main.ts"
   },

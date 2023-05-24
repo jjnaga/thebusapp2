@@ -1,12 +1,15 @@
 // @ts-ignore
 import('log-timestamp');
-import { query, end } from './db.js';
+import axios, { isCancel, AxiosError, AxiosResponse } from 'axios';
+import pool from './db.js';
 import { Arrivals, GetArrivalsJSONReturn, TripInfoTransaction } from './types.js';
 import pLimit from 'p-limit';
 import { XMLParser } from 'fast-xml-parser';
 import { updateAPICount, upsertTripsInfoSQL } from './sql.js';
+import * as dotenv from 'dotenv';
 
 const tripsTracker = new Map();
+dotenv.config();
 
 const insertArrivals = async (json: Arrivals): Promise<number> => {
   let numUpdates = 0;
@@ -30,7 +33,7 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
         }
 
         tripsTracker.set(arr.trip, arr.vehicle);
-        query(upsertTripsInfoSQL, [arr.trip, arr.canceled, arr.vehicle]).then((res) => {
+        pool.query(upsertTripsInfoSQL, [arr.trip, arr.canceled, arr.vehicle]).then((res) => {
           res.rows.length > 0 ? resolve({ command: res.command, data: res.rows[0] }) : resolve(null);
         });
       })
@@ -55,14 +58,14 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
 
 // Get latest arrivals for a stop and send to insertArrivals() for insertion.
 const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
-  const url = `http://api.thebus.org/arrivals/?key=6A9D054D-9D15-458F-95E2-38A2DC10FB85&stop=${stopID}`;
+  const url = `http://api.thebus.org/arrivals/?key=${process.env.API_KEY}&stop=${stopID}`;
   const parser = new XMLParser();
 
   updateAPICount();
-  return fetch(url)
-    .then((res) => res.text())
-    .then((xml) => parser.parse(xml))
-    .then(async (json) => {
+  return axios
+    .get(url, { responseType: 'text' })
+    .then((res: AxiosResponse) => parser.parse(res.data))
+    .then(async (json: any) => {
       // Skip insertArrivals() if there are no incoming busses for a stop.
       if ('arrival' in json.stopTimes === false) {
         return { stopID: stopID, numUpdates: 0 };
@@ -79,7 +82,7 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
 
 // Get bus stops to query.
 const getAllStops = (): Promise<any[]> => {
-  return query(`SELECT stop_id from gtfs.last_stops`).then((res) => {
+  return pool.query(`SELECT stop_id from gtfs.last_stops`).then((res) => {
     return res.rows;
   });
 };
