@@ -11,4 +11,6 @@ let config = {
 let pool = new pg.Pool(config);
 console.log('New Pool made');
 
+// let data = pool.query(`SELECT CURRENT_TIMESTAMP`).then((res) => res.rows);
+
 export default pool;

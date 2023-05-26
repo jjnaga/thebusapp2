@@ -278,7 +278,7 @@ const gtfs = async () => {
 
     console.log(`[GTFS] ${gtfs.version}:  Results`);
     for (let fileInsertStatus of filesInsertStatus) {
-      console.log(`[GTFS] ${gtfs.version} - ${fileInsertStatus.fileName}:${MAX_SPACES}${fileInsertStatus.status}`);
+      console.log(`[GTFS] ${gtfs.version} - ${fileInsertStatus.fileName}: ${fileInsertStatus.status}`);
     }
 
     for (let fileInsertStatus of filesInsertStatus as any) {
