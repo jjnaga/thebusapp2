@@ -69,9 +69,9 @@ export type BusInfo = {
 
 export type getandInsertBusType = {
   busNumber: string;
-  upsertStatus: boolean;
+  upsertStatus?: boolean;
   errorMessage?: string;
-  vehicle?: VehicleInfo[];
+  vehicle?: any;
 };
 
 export type DataBaseQuery = (sql: string, params?: Array<any>, func?: string) => Promise<pg.QueryResult<any>>;

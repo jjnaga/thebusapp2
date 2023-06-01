@@ -6,6 +6,7 @@ import { Arrivals, GetArrivalsJSONReturn, TripInfoTransaction } from './types.js
 import pLimit from 'p-limit';
 import { XMLParser } from 'fast-xml-parser';
 import { updateAPICount, upsertTripsInfoSQL } from './sql.js';
+import moment from 'moment';
 import * as dotenv from 'dotenv';
 
 const tripsTracker = new Map();
@@ -33,8 +34,22 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
         }
 
         tripsTracker.set(arr.trip, arr.vehicle);
-        pool.query(upsertTripsInfoSQL, [arr.trip, arr.canceled, arr.vehicle]).then((res) => {
-          res.rows.length > 0 ? resolve({ command: res.command, data: res.rows[0] }) : resolve(null);
+        // console.log(
+        //   `[Arrivals] Pool Waiting/Idle/Total Count: ${pool.waitingCount}/${pool.idleCount}/${pool.totalCount}`
+        // );
+        pool.connect((err, client, done) => {
+          if (err) {
+            done();
+            console.error(`[Arrivals] json.stop ${json} Error when connecting to pool: ` + err);
+          }
+
+          client.query(upsertTripsInfoSQL, [arr.trip, arr.canceled, arr.vehicle], (err, res) => {
+            done();
+            if (err) {
+              console.error(`[Arrivals] Error when querying cilent: ` + err);
+            }
+            res.rows.length > 0 ? resolve({ command: res.command, data: res.rows[0] }) : resolve(null);
+          });
         });
       })
     );
@@ -61,7 +76,7 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
   const url = `http://api.thebus.org/arrivals/?key=${process.env.API_KEY}&stop=${stopID}`;
   const parser = new XMLParser();
 
-  updateAPICount();
+  // updateAPICount();
   return axios
     .get(url, { responseType: 'text' })
     .then((res: AxiosResponse) => parser.parse(res.data))
@@ -93,38 +108,33 @@ const getAllStops = (): Promise<any[]> => {
  *
  *  Return: true on completion so main.ts can know all active busses are ready to be retrieved.
  */
-const updateArrivals = (): Promise<boolean> => {
-  let i = 0;
-  while (i < 1000000) i++;
+const updateArrivals = (): Promise<boolean> =>
+  new Promise(async (resolve) => {
+    console.log('[arrivals] Checking Arrivals API for new/updated assigned vehicles.');
+    const limit = pLimit(18);
+    let totalUpdates = 0;
+    const stops = await getAllStops();
 
-  // prettier-ignore
-  return new Promise(async (resolve) => {
-      console.log('[arrivals] Checking Arrivals API for new/updated assigned vehicles.');
-      const limit = pLimit(10);
-      let totalUpdates = 0;
-      const stops = await getAllStops();
+    const promises: Promise<GetArrivalsJSONReturn>[] = [];
 
-      const promises: Promise<GetArrivalsJSONReturn>[] = [];
+    for (let stop of stops) {
+      promises.push(limit(() => getBusArrivalsJSON(stop.stop_id)));
+    }
 
-      for (let stop of stops) {
-        promises.push(limit(() => getBusArrivalsJSON(stop.stop_id)));
+    const stopResults = await Promise.all(promises);
+    for (let stop of stopResults) {
+      totalUpdates += stop.numUpdates;
+      if (stop.numUpdates > 0) {
+        console.log(
+          `[arrivals] Stop ${stop.stopID.padStart(4, ' ')}: ${stop.numUpdates} ${
+            stop.numUpdates === 1 ? 'update' : 'updates'
+          }`
+        );
       }
+    }
+    console.log(`[arrivals] Total Inserts/Updates: ${totalUpdates}.`);
 
-      const stopResults = await Promise.all(promises);
-      for (let stop of stopResults) {
-        totalUpdates += stop.numUpdates;
-        if (stop.numUpdates > 0) {
-          console.log(
-            `[arrivals] Stop ${stop.stopID.padStart(4, ' ')}: ${stop.numUpdates} ${
-              stop.numUpdates === 1 ? 'update' : 'updates'
-            }`
-          );
-        }
-      }
-      console.log(`[arrivals] Total Inserts/Updates: ${totalUpdates}`);
-
-      resolve(true);
-    })
-};
+    resolve(true);
+  });
 
 export default updateArrivals;

@@ -203,16 +203,18 @@ ALTER TABLE api.trips_info OWNER TO postgres;
 --
 
 CREATE TABLE api.vehicle_info (
-    bus_number text NOT NULL,
-    trip text NOT NULL,
-    driver numeric,
-    latitude numeric,
-    longitude numeric,
-    adherence numeric,
-    last_message timestamp without time zone,
-    route text,
-    headsign text
+	bus_number text NOT NULL,
+	driver numeric NULL,
+	latitude numeric NULL,
+	longitude numeric NULL,
+	adherence numeric NULL,
+	last_message timestamptz NULL,
+    route text null,
+	updated_on timestamptz NULL DEFAULT CURRENT_TIMESTAMP,
+	next_update timestamptz NULL,
+	CONSTRAINT vehicle_info_pkey PRIMARY KEY (bus_number)
 );
+
 
 
 
@@ -225,14 +227,11 @@ ALTER TABLE api.vehicle_info OWNER TO postgres;
 CREATE TABLE api.vehicle_info_audit (
     audit_entry integer NOT NULL,
     bus_number text NOT NULL,
-    trip text,
     driver numeric,
     latitude numeric,
     longitude numeric,
     adherence numeric,
     last_message timestamp without time zone,
-    route text,
-    headsign text,
     action api.audit_action NOT NULL,
     log_time timestamp with time zone NOT NULL
 );

@@ -1,18 +1,29 @@
-'use client';
-import { useLoadScript, GoogleMap, MarkerF, LoadScript } from '@react-google-maps/api';
+import { getBusesData } from '@/lib/functions';
 import Map from '../components/Map';
+import React, { useEffect, Fragment, useState } from 'react';
+import { useMutation, useSubscription, gql } from '@apollo/client';
+import { Metadata } from 'next';
 
-// const API_ENDPOINT = 'localhost:3000';
+/**
+ * Default metadata.
+ *
+ * @see https://beta.nextjs.org/docs/api-reference/metadata
+ */
+export const metadata: Metadata = {
+  title: 'The Bus',
+  description: 'The Bus App',
+};
 
-// export async function getVehicles() {
-//   try {
-//     let data = await fetch('http://localhost:3000/api/vehicles');
-//     return data.json();
-//   } catch (err) {
-//     console.error(err);
-//   }
-// }
+// What does these two lines do?
+export const runtime = 'edge';
+export const revalidate = 60;
 
 export default async function Home() {
-  return <Map />;
+  const busData = await getBusesData();
+
+  if (!busData) {
+    return 'Loading Data';
+  }
+
+  return <Map busData={busData} />;
 }

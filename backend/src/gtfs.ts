@@ -77,7 +77,7 @@ const checkGTFSWebsiteForUpdates = async () => {
   await Promise.all(gtfsPromises);
 };
 
-const gtfs = async () => {
+const runGTFS = async () => {
   /*
    * Get table schemas and primary keys for upserts.
    */
@@ -299,4 +299,4 @@ const gtfs = async () => {
   }
 };
 
-export { gtfs };
+export { runGTFS };

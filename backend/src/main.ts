@@ -3,16 +3,11 @@
 import('log-timestamp');
 import { BusInfo, getandInsertBusType } from './types.js';
 import moment from 'moment';
-import { getAllActiveBusses } from './sql.js';
+import { getAllActiveBuses } from './sql.js';
 import updateArrivals from './arrivals.js';
 import pool from './db.js';
-import { getandInsertBus } from './vehicles.js';
-import { gtfs } from './gtfs.js';
-
-let activeBusses: { vehicle_name: string }[] = [];
-let bussesDataHash: {
-  [busName: string]: BusInfo;
-} = {};
+import { getandInsertBusesData } from './vehicles.js';
+import { runGTFS } from './gtfs.js';
 
 const locks = {
   arrivalsChecked: false,
@@ -27,6 +22,7 @@ const BUS_UPDATE_FUTURE_UPDATE_NOT_FOUND = 60 * 15;
 const TIME_UNTIL_NEXT_ACTIVE_BUSSES_CHECK = 2000;
 
 const arrivals = async () => {
+  let startTime = moment();
   const timeoutMinutes = 15;
 
   // Make sure that when GTFS is loading, nothing else is running.
@@ -40,19 +36,17 @@ const arrivals = async () => {
   locks.arrivalsChecked = false;
   await updateArrivals();
 
-  console.log('[main] getting active busses.');
-  activeBusses = await getAllActiveBusses();
-  console.log(`[main] ${activeBusses.length} active busses.`);
-
   if (locks.arrivalsChecked === false) {
     locks.arrivalsChecked = true;
   }
 
+  let endTime = moment();
+  let runtime = endTime.diff(startTime) / 1000;
   console.log(`[main] Next arrivals update in ${timeoutMinutes} minutes.`);
   setTimeout(arrivals, timeoutMinutes * (1000 * 60));
 };
 
-const runGTFS = async () => {
+const gtfs = async () => {
   // Get time until 2AM HST
   let NEXT_TWO_AM_HST = moment().utc().startOf('day').add(12, 'hours');
   const now = moment().utc();
@@ -61,19 +55,20 @@ const runGTFS = async () => {
 
   console.log('[main] GTFS Start.');
   locks.gtfsRunning = true;
-  await gtfs();
+  await runGTFS();
   console.log('[main] GTFS Done');
   locks.gtfsRunning = false;
 
   console.log(`[main] Next GTFS check in ${timeoutMinutes} minutes.`);
 
-  setTimeout(runGTFS, timeoutMinutes * (1000 * 60));
+  setTimeout(gtfs, timeoutMinutes * (1000 * 60));
 };
 
-const updateBusses = async () => {
+const vehicles = async () => {
+  let startTime = moment();
   let upsertCount = 0;
 
-  console.log('[vehicles] Updating active busses.');
+  console.log('[main] Updating active busses.');
 
   // Make sure that when GTFS is loading, nothing else is running.
   // Wait on arrivals to finish before getting bus info, otherwise there would be no active busses.
@@ -81,73 +76,30 @@ const updateBusses = async () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  const promises: Promise<getandInsertBusType>[] = [];
+  // Get active buses that need to be updated.
+  // Note: Query is in the thousandths of a second, it's fast.
+  let activeBuses: string[] = await getAllActiveBuses(BUS_UPDATE_DEFAULT_UPDATE_INTERVAL);
+  console.log(`[main] ${activeBuses.length} active buses need to be updated`);
 
-  // Loop through active busses and getandInsertBus() each into a promise.
-  for (let activeBus of activeBusses) {
-    // If vehicleName not in hash, it's brand new just run it.
-    if (!bussesDataHash.hasOwnProperty(activeBus.vehicle_name)) {
-      promises.push(getandInsertBus(activeBus.vehicle_name));
-      continue;
-    } else {
-      if (new Date(bussesDataHash[activeBus.vehicle_name]!.lastUpdated.getTime()) <= new Date()) {
-        promises.push(getandInsertBus(activeBus.vehicle_name));
-      }
-    }
+  // Cycle through each bus, query API, and update DB.
+  if (activeBuses.length > 0) {
+    let data: getandInsertBusType[] = await getandInsertBusesData(activeBuses);
   }
 
-  let data = await Promise.all(promises);
-  for (let result of data) {
-    // Unable to upsert. errorMessage gives reason, if it's 'Could not find', set the next update to a longer interval.
-    if (result.upsertStatus === false) {
-      console.log(`[vehicles] ${result.busNumber} - ${result.errorMessage}`);
-
-      // If it cannot find the vehicle, input it into the hash with a nextUpdate in the future so it's not being
-      // queried every time.
-      if (result.errorMessage?.includes('Could not find')) {
-        bussesDataHash[result.busNumber] = {
-          lastUpdated: new Date(moment().add(BUS_UPDATE_FUTURE_UPDATE_NOT_FOUND, 'seconds').toDate()),
-        };
-      }
-
-      if (result.errorMessage === 'No active trips scheduled') {
-        bussesDataHash[result.busNumber] = {
-          lastUpdated: new Date(moment().add(BUS_UPDATE_FUTURE_UPDATE_NOT_FOUND, 'seconds').toDate()),
-        };
-      }
-      continue;
-    }
-
-    // Get the latest heartbeat of the vehicle.
-    let lastUpdated = moment(result.vehicle![0].last_message, 'MM/DD/YYYY hh:mm:ss A').toDate();
-    result.vehicle!.forEach((res) => {
-      let heartbeat = moment(res.last_message, 'MM/DD/YYYY hh:mm:ss A').toDate();
-      if (heartbeat > lastUpdated) lastUpdated = heartbeat;
-    });
-
-    // If bus is in use, set next update to IN_USE_UPDATE_INTERVAL instead of BUS_UPDATE_DEFAULT_UPDATE_INTERVAL.
-    // testing
-    // This is where we would implement inUse - if someone is actually looking at this bus, set the update interval
-    // to 10 seconds instead of the default.
-    // if (result.inUse === true) {
-    bussesDataHash[result.busNumber] = {
-      vehicleInfo: result.vehicle!,
-      lastUpdated: moment(lastUpdated).add(BUS_UPDATE_DEFAULT_UPDATE_INTERVAL, 'seconds').toDate(),
-    };
-
-    upsertCount++;
-  }
-
-  console.log(`[vehicles] ${upsertCount} upserts.`);
-  setTimeout(updateBusses, TIME_UNTIL_NEXT_ACTIVE_BUSSES_CHECK);
+  let endTime = moment();
+  let runtime = endTime.diff(startTime) / 1000;
+  //console.log(`[vehicles] ${upsertCount} upserts. Transaction Time: ${runtime} seconds.`);
+  console.log(`[main] Updating active buses done. Transaction Time: ${runtime} seconds.`);
+  setTimeout(vehicles, TIME_UNTIL_NEXT_ACTIVE_BUSSES_CHECK);
 };
 
 const main = async () => {
   console.log('Starting main.ts');
+  // DEBUG: Monitor pg_stat_activity
 
   locks.gtfsRunning = true;
 
-  runGTFS();
+  gtfs();
 
   while (locks.gtfsRunning === true) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -160,7 +112,7 @@ const main = async () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  updateBusses();
+  vehicles();
 };
 
 main();

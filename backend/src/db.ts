@@ -3,9 +3,12 @@ import pg from 'pg';
 let config = {
   host: 'localhost',
   user: 'postgres',
-  password: 'postgres',
+  password: 'postgrespassword',
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 20000,
+
+  max: 200,
+  min: 20,
 };
 
 let pool = new pg.Pool(config);

@@ -1,5 +1,6 @@
 import { gtfsFilesUpsertData } from './types.js';
 import pool from './db.js';
+import { error } from 'console';
 
 ///@ts-ignore
 export const upsertTripsInfoSQL = `
@@ -25,35 +26,57 @@ CREATE TABLE
 `;
 
 ///@ts-ignore
-export const upsertBusInfoSQL = `
-  INSERT INTO api.vehicle_info (bus_number, trip, driver, latitude, longitude, adherence, last_message, route, headsign)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-  ON CONFLICT (bus_number, trip) DO
+export const upsertBusInfoSQL = (values: string) => `
+
+  INSERT INTO api.vehicle_info (bus_number, driver, latitude, longitude, adherence, last_message, route, next_update)
+  VALUES ${values}
+  ON CONFLICT (bus_number) DO
   UPDATE
-  SET trip = EXCLUDED.trip,
-      driver = EXCLUDED.driver,
+  SET driver = EXCLUDED.driver,
       latitude = EXCLUDED.latitude,
       longitude = EXCLUDED.longitude,
       adherence = EXCLUDED.adherence,
       last_message = EXCLUDED.last_message,
-      route = EXCLUDED.route,
-      headsign = EXCLUDED.headsign
+      updated_on = current_timestamp,
+      next_update = EXCLUDED.next_update,
+      route = EXCLUDED.route
   `;
 
-export const getAllActiveBusses = (): Promise<any[]> => {
-  return pool.query(`SELECT vehicle_name from thebus.active_busses`).then((res) => {
-    return res.rows;
-  });
+export const getAllActiveBuses = (updateFrequency: number): Promise<string[]> => {
+  let sql = `select 
+              vehicle_name
+            from
+              thebus.active_busses ab
+            left join api.vehicle_info vi on
+              ab.vehicle_name = vi.bus_number
+            where (
+              vi.next_update < current_timestamp - interval '60 seconds'
+              or vi.bus_number is null
+            )`;
+
+  return pool.query(sql).then((res) => res.rows.map((row) => row.vehicle_name));
 };
 
 export const updateAPICount = () => {
-  pool.query(`
-    insert into api.api_hits_count 
-    values (date(timezone('HST', now())), 1)
-    on conflict("date") DO
-    update 
-    set hits = api_hits_count.hits + 1;
-  `);
+  pool.connect((err, client, done) => {
+    if (err) {
+      throw err;
+    }
+
+    client.query(
+      `insert into api.api_hits_count 
+      values (date(timezone('HST', now())), 1)
+      on conflict("date") DO
+      update 
+      set hits = api.api_hits_count.hits + 1`,
+      (err, res) => {
+        done();
+        if (err) {
+          console.error(`[UpdateAPICount] Error when querying cilent: ` + err);
+        }
+      }
+    );
+  });
 };
 
 export const copyGTFSTableFromFile = (fileName: string, tableColumns: string) => `
