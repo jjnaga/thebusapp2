@@ -1,8 +1,8 @@
 // @ts-ignore
 import('log-timestamp');
 import axios, { AxiosResponse } from 'axios';
-import pool from './db.js';
-import { VehicleAPI, VehicleInfo, getandInsertBusType, upsertBusStatus } from './types.js';
+import { getClient, query } from './db.js';
+import { ActiveBuses, VehicleAPI, VehicleInfo, getandInsertBusType, upsertBusStatus } from './types.js';
 import { XMLParser } from 'fast-xml-parser';
 import pLimit from 'p-limit';
 import momentTimezone from 'moment-timezone';
@@ -10,6 +10,7 @@ import moment from 'moment';
 import * as dotenv from 'dotenv';
 import { updateAPICount, upsertBusInfoSQL } from './sql.js';
 import { PoolClient } from 'pg';
+import pgp from 'pg-promise';
 
 dotenv.config();
 
@@ -18,7 +19,7 @@ const BUS_UPDATE_DEFAULT_UPDATE_INTERVAL = 180;
 
 // Upsert vehicle API data into DB.
 const upsertBuses = (buses: getandInsertBusType[], debug?: boolean): Promise<getandInsertBusType[]> => {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     let insertData: string[] = [];
     let count = 0;
 
@@ -55,7 +56,7 @@ const upsertBuses = (buses: getandInsertBusType[], debug?: boolean): Promise<get
         // append comma for all rows except the last.
       } else {
         // If error, set next update to 15 minutes ahead.
-        sql = `('${bus.busNumber}', NULL, NULL, NULL, NULL, NULL, NULL, '${moment()
+        sql = `('${bus.vehicleNumber}', NULL, NULL, NULL, NULL, NULL, NULL, '${moment()
           .add(15, 'minutes')
           .toISOString()}')`;
         console.log(`[vehicles] ${bus.errorMessage}`);
@@ -68,31 +69,32 @@ const upsertBuses = (buses: getandInsertBusType[], debug?: boolean): Promise<get
 
     let sql = upsertBusInfoSQL(dataString);
 
-    pool.connect((err, client, done) => {
-      if (err) {
-        done();
-        console.error(`[Vehicles] Unable to get a client from pool.`);
-      }
-
-      client.query(sql).then((res) => {
-        done();
-        console.log(`[Vehicles] ${count} buses updated.`);
-        // @ts-ignore
-        resolve(res);
-      });
+    let client: PoolClient;
+    try {
+      client = await getClient();
+    } catch (err) {
+      throw new Error(`upsertBus - Unable to get Client: ${err}`);
+    }
+    client.query(sql).then((res) => {
+      client.release();
+      console.log(`[Vehicles] ${count} buses updated.`);
+      // @ts-ignore
+      resolve(res);
     });
   });
 };
 
 // Query API. Parse data, upsert into D(erB, and return data so it can be stored in hash table.
-const getandInsertBusesData = (busNumbers: string[]): Promise<getandInsertBusType[]> => {
+const getandInsertBusesData = (activeBuses: ActiveBuses[]): Promise<getandInsertBusType[]> => {
   const parser = new XMLParser();
   const limit = pLimit(12);
 
   return new Promise(async (resolve) => {
     let axiosPromises: Promise<any>[] = [];
-    for (let busNumber of busNumbers) {
-      const url = `http://api.thebus.org/vehicle/?key=${process.env.API_KEY}&num=${busNumber}`;
+    for (let bus of activeBuses) {
+      let { vehicleNumber, lastMessage } = bus;
+      console.log(lastMessage);
+      const url = `http://api.thebus.org/vehicle/?key=${process.env.API_KEY}&num=${vehicleNumber}`;
 
       // updateAPICount();
       axiosPromises.push(
@@ -105,7 +107,7 @@ const getandInsertBusesData = (busNumbers: string[]): Promise<getandInsertBusTyp
 
                 // JSON may just return errorMessage, no vehicle{}. Error looks like: Could not find vehicle "###"
                 if (data.hasOwnProperty('errorMessage')) {
-                  resolve({ busNumber, errorMessage: data.errorMessage, upsertStatus: false });
+                  resolve({ vehicleNumber, errorMessage: data.errorMessage, upsertStatus: false });
                 }
 
                 if (data.vehicle !== undefined) {
@@ -119,14 +121,14 @@ const getandInsertBusesData = (busNumbers: string[]): Promise<getandInsertBusTyp
                   if (!Array.isArray(data.vehicle)) {
                     data.vehicle = [data.vehicle];
                   } else {
-                    // console.log(`DEBUG: multiple vehicles found: ${busNumber}`);
+                    // console.log(`DEBUG: multiple vehicles found: ${vehicleNumber}`);
 
                     // Filter out errenous trips. Identifier is tripID is 'null_trip', instead of a number.
                     data.vehicle = data.vehicle.filter((item) => typeof item.trip === 'number');
 
                     // Check if filter filtered out everything. If so, return an error.
                     if (data.vehicle.length === 0) {
-                      resolve({ busNumber, errorMessage: 'No active trips scheduled', upsertStatus: false });
+                      resolve({ vehicleNumber, errorMessage: 'No active trips scheduled', upsertStatus: false });
                       return;
                     }
                   }
@@ -136,10 +138,10 @@ const getandInsertBusesData = (busNumbers: string[]): Promise<getandInsertBusTyp
                   // the most recent last_message. If there is only one data set, return that set.
                   let mostRecentBusData: VehicleInfo;
                   if (data.vehicle.length > 1) {
-                    console.log(`Multiple vehicle data returned for ${busNumber}`);
+                    console.log(`Multiple vehicle data returned for ${vehicleNumber}`);
                     for (let i = 0; i < data.vehicle.length; i++) {
                       console.log(
-                        `${busNumber}: ${moment(
+                        `${vehicleNumber}: ${moment(
                           data.vehicle[i].last_message,
                           'MM/DD/YYYY hh:mm:ss A'
                         ).toLocaleString()}`
@@ -156,9 +158,9 @@ const getandInsertBusesData = (busNumbers: string[]): Promise<getandInsertBusTyp
                     mostRecentBusData = data.vehicle[0];
                   }
 
-                  resolve({ busNumber, upsertStatus: false, vehicle: mostRecentBusData });
+                  resolve({ vehicleNumber, upsertStatus: false, vehicle: mostRecentBusData });
                 } else {
-                  resolve({ busNumber, errorMessage: 'JSON is undefined', upsertStatus: false });
+                  resolve({ vehicleNumber, errorMessage: 'JSON is undefined', upsertStatus: false });
                   return;
                 }
               });

@@ -187,10 +187,10 @@ ALTER TABLE api.api_hits_count OWNER TO postgres;
 --
 
 CREATE TABLE api.trips_info (
-    trip_id numeric NOT NULL,
+    trip_id numeric NOT NULL primary key,
+    active bool NOT NULL DEFAULT false,
     canceled boolean NOT NULL,
-    vehicle_name character varying,
-    previous_vehicle_name character varying,
+    vehicle_number character varying,
     vehicle_last_updated timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -209,6 +209,7 @@ CREATE TABLE api.vehicle_info (
 	longitude numeric NULL,
 	adherence numeric NULL,
 	last_message timestamptz NULL,
+    update_frequency numeric SET DEFAULT 65,
     route text null,
 	updated_on timestamptz NULL DEFAULT CURRENT_TIMESTAMP,
 	next_update timestamptz NULL,
@@ -539,11 +540,11 @@ ALTER TABLE gtfs.vehicle_info_audit_seq OWNER TO postgres;
 
 
 --
--- Name: active_busses; Type: VIEW; Schema: thebus; Owner: postgres
+-- Name: active_buses; Type: VIEW; Schema: thebus; Owner: postgres
 --
 
-CREATE VIEW thebus.active_busses AS
- SELECT DISTINCT ti2.vehicle_name
+CREATE VIEW thebus.active_buses AS
+ SELECT DISTINCT ti2.vehicle_number
    FROM (( SELECT to_timestamp(((CURRENT_DATE)::text || (
                 CASE
                     WHEN ((st.arrival_time)::text ~ '^2[456789]'::text) THEN ((((("substring"((st.arrival_time)::text, 1, 2))::integer - 24))::text || "substring"((st.arrival_time)::text, 3)))::time without time zone
@@ -558,7 +559,7 @@ CREATE VIEW thebus.active_busses AS
   WHERE ((sq2.arrival > (CURRENT_TIMESTAMP - '01:00:00'::interval)) AND (sq2.arrival < (CURRENT_TIMESTAMP + '01:00:00'::interval)));
 
 
-ALTER TABLE thebus.active_busses OWNER TO postgres;
+ALTER TABLE thebus.active_buses OWNER TO postgres;
 
 --
 -- Name: vehicle_info_audit audit_entry; Type: DEFAULT; Schema: api; Owner: postgres

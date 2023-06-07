@@ -1,13 +1,15 @@
 // @ts-ignore
 import('log-timestamp');
 import axios, { isCancel, AxiosError, AxiosResponse } from 'axios';
-import pool from './db.js';
+import { query, getClient } from './db.js';
 import { Arrivals, GetArrivalsJSONReturn, TripInfoTransaction } from './types.js';
 import pLimit from 'p-limit';
 import { XMLParser } from 'fast-xml-parser';
-import { updateAPICount, upsertTripsInfoSQL } from './sql.js';
+import { setTripsInfoActiveToFalse, updateAPICount, upsertTripsInfoSQL } from './sql.js';
 import moment from 'moment';
+import pgp from 'pg-promise';
 import * as dotenv from 'dotenv';
+import { PoolClient } from 'pg';
 
 const tripsTracker = new Map();
 dotenv.config();
@@ -18,8 +20,15 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
 
   for (const arr of json.arrival) {
     promises.push(
-      new Promise<TripInfoTransaction | null>((resolve) => {
+      new Promise<TripInfoTransaction | null>(async (resolve) => {
         const hashValue = tripsTracker.get(arr.trip);
+        if (arr.vehicle === '290') {
+          console.log('290');
+          console.log('FOUND');
+          console.log(arr);
+          let query = pgp.as.format(upsertTripsInfoSQL(), [arr.trip, arr.canceled, arr.vehicle]);
+          console.log(query);
+        }
 
         // If hashValue is defined, and it's equal to vehicle, we already processed TripID => Vehicle. Skip.
         if (hashValue !== undefined && hashValue === arr.vehicle) {
@@ -37,19 +46,19 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
         // console.log(
         //   `[Arrivals] Pool Waiting/Idle/Total Count: ${pool.waitingCount}/${pool.idleCount}/${pool.totalCount}`
         // );
-        pool.connect((err, client, done) => {
-          if (err) {
-            done();
-            console.error(`[Arrivals] json.stop ${json} Error when connecting to pool: ` + err);
-          }
+        let client: PoolClient;
+        try {
+          client = await getClient();
+        } catch (err) {
+          throw new Error(`Getting Client, insertArrivals, ${arr.trip}/${arr.vehicle}: ${err}`);
+        }
 
-          client.query(upsertTripsInfoSQL, [arr.trip, arr.canceled, arr.vehicle], (err, res) => {
-            done();
-            if (err) {
-              console.error(`[Arrivals] Error when querying cilent: ` + err);
-            }
-            res.rows.length > 0 ? resolve({ command: res.command, data: res.rows[0] }) : resolve(null);
-          });
+        client.query(upsertTripsInfoSQL(), [arr.trip, arr.canceled, arr.vehicle], (err, res) => {
+          client.release();
+          if (err) {
+            throw new Error(`[Arrivals] Error when querying cilent: ` + err);
+          }
+          res.rows.length > 0 ? resolve({ command: res.command, data: res.rows[0] }) : resolve(null);
         });
       })
     );
@@ -62,9 +71,9 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
 
     console.log(
       `[arrivals] Trip ${res.data.trip_id} -  ${
-        res.data.previous_vehicle_name === null
-          ? `Vehicle chosen: ${res.data.vehicle_name}`
-          : `Vehicle updated: From ${res.data.previous_vehicle_name} to ${res.data.vehicle_name}`
+        res.data.previous_vehicle_number === null
+          ? `Vehicle chosen: ${res.data.vehicle_number}`
+          : `Vehicle updated: From ${res.data.previous_vehicle_number} to ${res.data.vehicle_number}`
       }`
     );
   }
@@ -89,6 +98,13 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
         if (!Array.isArray(json.stopTimes.arrival)) {
           json.stopTimes.arrival = [json.stopTimes.arrival];
         }
+
+        // Update columns which may be numbers to strings.
+        json.stopTimes.arrival.forEach((ele: any) => {
+          ele.route = String(ele.route);
+          ele.vehicle = String(ele.vehicle);
+        });
+
         let updateCount = await insertArrivals(json.stopTimes);
         return { stopID: stopID, numUpdates: updateCount };
       }
@@ -97,7 +113,7 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
 
 // Get bus stops to query.
 const getAllStops = (): Promise<any[]> => {
-  return pool.query(`SELECT stop_id from gtfs.last_stops`).then((res) => {
+  return query(`SELECT stop_id from gtfs.last_stops`, []).then((res) => {
     return res.rows;
   });
 };
@@ -110,6 +126,24 @@ const getAllStops = (): Promise<any[]> => {
  */
 const updateArrivals = (): Promise<boolean> =>
   new Promise(async (resolve) => {
+    console.log('[arrivals] Inactivating all trips.');
+    let client: PoolClient;
+    try {
+      client = await getClient();
+    } catch (err) {
+      throw new Error('UpdateArrivals - Error getting client: ' + err);
+    }
+
+    await client
+      .query(setTripsInfoActiveToFalse(), [])
+      .then((res) => {
+        client.release();
+        console.log(`[arrivals] All trips (${res.rowCount}) inactivated.`);
+      })
+      .catch((err) => {
+        throw new Error('setTripsInfoActiveToFalse: ' + err);
+      });
+
     console.log('[arrivals] Checking Arrivals API for new/updated assigned vehicles.');
     const limit = pLimit(18);
     let totalUpdates = 0;

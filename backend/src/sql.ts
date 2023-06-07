@@ -1,36 +1,39 @@
-import { gtfsFilesUpsertData } from './types.js';
-import pool from './db.js';
+import { ActiveBuses, gtfsFilesUpsertData } from './types.js';
+import { query, getClient } from './db.js';
 import { error } from 'console';
+import { PoolClient, QueryResult } from 'pg';
 
-///@ts-ignore
-export const upsertTripsInfoSQL = `
-insert into api.trips_info (
-  trip_id,
-  canceled, 
-  vehicle_name)
-values (
-  $1,
-  $2::boolean,
-  $3) 
-on conflict (trip_id) 
-do update
-set
-  vehicle_name = EXCLUDED.vehicle_name,
-  previous_vehicle_name = trips_info.vehicle_name,
-  vehicle_last_updated = current_timestamp
-where trips_info.vehicle_name <> EXCLUDED.vehicle_name
-RETURNING *`;
+export const setTripsInfoActiveToFalse = (): string => {
+  let sql = `UPDATE api.trips_info
+             SET active = false`;
+  return sql;
+};
 
-const bus_info = `
-CREATE TABLE 
-`;
+export const upsertTripsInfoSQL = (): string => {
+  let sql = `insert into api.trips_info (
+    trip_id,
+    canceled, 
+    vehicle_number, 
+    active)
+  values (
+    $1,
+    $2::boolean,
+    $3,
+    true) 
+  on conflict (trip_id) 
+  do update
+  set
+    vehicle_number = EXCLUDED.vehicle_number,
+    vehicle_last_updated = current_timestamp,
+    active = true
+  RETURNING *`;
+  return sql;
+};
 
-///@ts-ignore
-export const upsertBusInfoSQL = (values: string) => `
-
-  INSERT INTO api.vehicle_info (bus_number, driver, latitude, longitude, adherence, last_message, route, next_update)
+export const upsertBusInfoSQL = (values: string) => {
+  let sql = `INSERT INTO api.vehicle_info (number, driver, latitude, longitude, adherence, last_message, route, next_update)
   VALUES ${values}
-  ON CONFLICT (bus_number) DO
+  ON CONFLICT (number) DO
   UPDATE
   SET driver = EXCLUDED.driver,
       latitude = EXCLUDED.latitude,
@@ -41,51 +44,60 @@ export const upsertBusInfoSQL = (values: string) => `
       next_update = EXCLUDED.next_update,
       route = EXCLUDED.route
   `;
-
-export const getAllActiveBuses = (updateFrequency: number): Promise<string[]> => {
-  let sql = `select 
-              vehicle_name
-            from
-              thebus.active_busses ab
-            left join api.vehicle_info vi on
-              ab.vehicle_name = vi.bus_number
-            where (
-              vi.next_update < current_timestamp - interval '60 seconds'
-              or vi.bus_number is null
-            )`;
-
-  return pool.query(sql).then((res) => res.rows.map((row) => row.vehicle_name));
+  return sql;
 };
 
-export const updateAPICount = () => {
-  pool.connect((err, client, done) => {
-    if (err) {
-      throw err;
-    }
+export const getAllActiveBuses = (): string => {
+  let sql = `select vehicle_number, last_message
+              from
+                (
+                select
+                  vehicle_number,
+                  last_message + interval '1 second' * update_frequency "next_update_on",
+                  last_message
+                from
+                  thebus.active_buses ab
+                left join api.vehicle_info vi on
+                  ab.vehicle_number = vi.number
+                where
+                  route = '3'
+                ) bus_and_next_update
+              where current_timestamp >= next_update_on`;
+  return sql;
+};
 
-    client.query(
-      `insert into api.api_hits_count 
+export const updateAPICount = async () => {
+  let client: PoolClient;
+
+  try {
+    client = await getClient();
+  } catch (err) {
+    throw new Error('Getting Client: updateAPICount');
+  }
+
+  client.query(
+    `insert into api.api_hits_count 
       values (date(timezone('HST', now())), 1)
       on conflict("date") DO
       update 
       set hits = api.api_hits_count.hits + 1`,
-      (err, res) => {
-        done();
-        if (err) {
-          console.error(`[UpdateAPICount] Error when querying cilent: ` + err);
-        }
+    (err, res) => {
+      client.release();
+      if (err) {
+        console.error(`[UpdateAPICount] Error when querying cilent: ` + err);
       }
-    );
-  });
+    }
+  );
 };
 
-export const copyGTFSTableFromFile = (fileName: string, tableColumns: string) => `
-  COPY gtfs.${fileName}_staging (
+export const copyGTFSTableFromFile = (fileName: string, tableColumns: string) => {
+  let sql = `COPY gtfs.${fileName}_staging (
     ${tableColumns}           
   )
   from '/docker-entrypoint-initdb.d/${fileName}_staging.csv' 
-  with (format csv, delimiter ',')
-`;
+  with (format csv, delimiter ',')`;
+  return sql;
+};
 
 export const copyStagingTabletoTable = (fileName: string, tableSchema: any) => {
   let primaryKeys = tableSchema.reduce((accumulator: any, current: any) => {

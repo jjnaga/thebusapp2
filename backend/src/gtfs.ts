@@ -3,7 +3,7 @@ import fs from 'fs';
 import { copyGTFSTableFromFile, copyStagingTabletoTable, gtfsFilesUpsert, tableColumnInformation } from './sql.js';
 import { gtfsFilesUpsertData, gtfsUnzipPromisesType } from './types.js';
 import * as cheerio from 'cheerio';
-import pool from './db.js';
+import { getClient, query } from './db.js';
 
 // multithreaded = false is slower and blocks the UI thread if the files
 // inside are compressed, but it can be faster if they are not.
@@ -65,8 +65,7 @@ const checkGTFSWebsiteForUpdates = async () => {
     gtfsPromises.push(
       new Promise(async (resolve) => {
         let sql = gtfsFilesUpsert(gtfs);
-        const lastGTFSUpdate = await pool
-          .query(sql)
+        const lastGTFSUpdate = await query(sql, [])
           .then(resolve)
           .catch((err) => {
             throw new Error('DB ERROR - Unable to upsert gtfs.files: ' + err);
@@ -81,8 +80,7 @@ const runGTFS = async () => {
   /*
    * Get table schemas and primary keys for upserts.
    */
-  let tableSchemas = await pool
-    .query(tableColumnInformation)
+  let tableSchemas = await query(tableColumnInformation, [])
     .then((res) => res.rows)
     .then((data) => {
       // This is beautiful. Credit: Nina Scholz
@@ -103,15 +101,15 @@ const runGTFS = async () => {
   /*
    * Get gtfs files that need to be processed.
    */
-  const gtfsFilesToLoad: gtfsFilesUpsertData[] = await pool
-    .query(
-      `select
+  const gtfsFilesToLoad: gtfsFilesUpsertData[] = await query(
+    `select
       "version","date"::text,link,file,consumed
     from
     gtfs.files f
     where
-    f.consumed = false`
-    )
+    f.consumed = false`,
+    []
+  )
     .then((res) => res.rows)
     .catch((err) => {
       // console.error(err);
@@ -219,7 +217,7 @@ const runGTFS = async () => {
 
           // Truncate staging table in case there is any data.
           console.log(`[GTFS] ${gtfs.version} - ${fileName + ' '.repeat(MAX_SPACES - fileName.length)}Truncating`);
-          await pool.query(`TRUNCATE gtfs.${fileName}_staging`).catch((err) => {
+          await query(`TRUNCATE gtfs.${fileName}_staging`, []).catch((err) => {
             throw new Error(`${fileName}: ` + err);
           });
 
@@ -229,8 +227,7 @@ const runGTFS = async () => {
               fileName + ' '.repeat(MAX_SPACES - fileName.length)
             }Running COPY FROM into staging table`
           );
-          let copyResults = await pool
-            .query(copyGTFSTableFromFile(fileName, tableColumns))
+          let copyResults = await query(copyGTFSTableFromFile(fileName, tableColumns), [])
             .then((res) =>
               console.log(
                 `[GTFS] ${gtfs.version} - ${fileName + ' '.repeat(MAX_SPACES - fileName.length)}${
@@ -256,8 +253,7 @@ const runGTFS = async () => {
               fileName + ' '.repeat(MAX_SPACES - fileName.length)
             }Upserting from staging table`
           );
-          await pool
-            .query(copyStagingTabletoTable(fileName, tableSchemas[fileName]))
+          await query(copyStagingTabletoTable(fileName, tableSchemas[fileName]), [])
             .then((res) =>
               console.log(
                 `[GTFS] ${gtfs.version} - ${fileName + ' '.repeat(MAX_SPACES - fileName.length)}${
@@ -288,8 +284,7 @@ const runGTFS = async () => {
     }
 
     // Set file in gtfs.files to consumed=true
-    await pool
-      .query(`UPDATE gtfs.files SET consumed = true WHERE version = '${gtfs.version}'`)
+    await query(`UPDATE gtfs.files SET consumed = true WHERE version = '${gtfs.version}'`, [])
       .then((res) => {
         console.log(`[GTFS] ${gtfs.version} Updated row in gtfs.files, consumed = true`);
       })

@@ -1,13 +1,15 @@
 //@ts-ignore
 // @ts-ignore
 import('log-timestamp');
-import { BusInfo, getandInsertBusType } from './types.js';
+import { ActiveBuses, BusInfo, getandInsertBusType } from './types.js';
 import moment from 'moment';
 import { getAllActiveBuses } from './sql.js';
 import updateArrivals from './arrivals.js';
-import pool from './db.js';
+import { getClient, query } from './db.js';
 import { getandInsertBusesData } from './vehicles.js';
 import { runGTFS } from './gtfs.js';
+import { QueryResult } from 'pg';
+import pgp from 'pg-promise';
 
 const locks = {
   arrivalsChecked: false,
@@ -78,8 +80,19 @@ const vehicles = async () => {
 
   // Get active buses that need to be updated.
   // Note: Query is in the thousandths of a second, it's fast.
-  let activeBuses: string[] = await getAllActiveBuses(BUS_UPDATE_DEFAULT_UPDATE_INTERVAL);
-  console.log(`[main] ${activeBuses.length} active buses need to be updated`);
+  let getAllActiveBusesRes: QueryResult<any> = await query(getAllActiveBuses(), []).catch((err) => {
+    throw new Error('getAllActiveBuses: ' + err);
+  });
+
+  console.log('done ');
+  //throw new Error('done');
+
+  let activeBuses: ActiveBuses[] = getAllActiveBusesRes.rows.map((row) => ({
+    vehicleNumber: row.vehicle_name,
+    lastMessage: row.last_message,
+  }));
+
+  console.log(`[main] ${activeBuses.length} buses queued for update`);
 
   // Cycle through each bus, query API, and update DB.
   if (activeBuses.length > 0) {
@@ -88,7 +101,6 @@ const vehicles = async () => {
 
   let endTime = moment();
   let runtime = endTime.diff(startTime) / 1000;
-  //console.log(`[vehicles] ${upsertCount} upserts. Transaction Time: ${runtime} seconds.`);
   console.log(`[main] Updating active buses done. Transaction Time: ${runtime} seconds.`);
   setTimeout(vehicles, TIME_UNTIL_NEXT_ACTIVE_BUSSES_CHECK);
 };

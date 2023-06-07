@@ -1,3 +1,4 @@
+import { Moment } from 'moment';
 import * as pg from 'pg';
 const { Pool, Client } = pg;
 
@@ -8,15 +9,15 @@ export type TripInfoTransaction = {
 
 export type TripInfo = {
   trip_id: String;
-  vehicle_name: String;
-  previous_vehicle_name: String;
+  vehicle_number: String;
+  previous_vehicle_number: String;
   vehicle_last_updated: String;
 };
 
 export type Arrival = {
   id: number;
   trip: number;
-  route: number;
+  route: string;
   headsign: string;
   vehicle: string;
   direction: string;
@@ -68,10 +69,15 @@ export type BusInfo = {
 };
 
 export type getandInsertBusType = {
-  busNumber: string;
+  vehicleNumber: string;
   upsertStatus?: boolean;
   errorMessage?: string;
   vehicle?: any;
+};
+
+export type ActiveBuses = {
+  vehicleNumber: string;
+  lastMessage: Moment;
 };
 
 export type DataBaseQuery = (sql: string, params?: Array<any>, func?: string) => Promise<pg.QueryResult<any>>;
