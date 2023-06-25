@@ -14,11 +14,26 @@ let config = {
 const pool = new pg.Pool(config);
 console.log('New Pool made');
 
+const permanentClient = pool.connect();
+console.log('Permanent Client created.');
+
+export const poolDebug = () => {
+  console.log('Pool Waiting Count' + pool.waitingCount);
+  console.log('Pool Idle Count' + pool.idleCount);
+  console.log('Pool Total Count' + pool.totalCount);
+};
+
 export const query = async (text: string, params: any[]) => {
   // const start = Date.now();
   const res = await pool.query(text, params);
   // const duration = Date.now() - start;
   // console.log('executed query', { text, duration, rows: res.rowCount });
+  return res;
+};
+
+export const queryWithPermanentClient = async (text: string, params: any[], user?: string) => {
+  // if (user) console.log(`UpdateAPI: from ${user}`);
+  const res = await pool.query(text, params);
   return res;
 };
 
@@ -35,6 +50,7 @@ export const getClient = async () => {
 
   // @ts-ignore
   client.query = (...args) => {
+    // console.log(args);
     // @ts-ignore
     client.lastQuery = args;
     // @ts-ignore

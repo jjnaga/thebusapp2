@@ -5,6 +5,10 @@ import { gtfsFilesUpsertData, gtfsUnzipPromisesType } from './types.js';
 import * as cheerio from 'cheerio';
 import { getClient, query } from './db.js';
 
+// Amount of GTFS files to load. Latest and latest-1 is enough, latest may be in the future and latest-1 would
+// be the current data.
+const GET_FIRST_N = 1;
+
 // multithreaded = false is slower and blocks the UI thread if the files
 // inside are compressed, but it can be faster if they are not.
 const getFiles = async (arrayBuffer: ArrayBuffer): Promise<Unzipped | FlateError> => {
@@ -30,10 +34,6 @@ const checkGTFSWebsiteForUpdates = async () => {
   const response = await fetch(gtfsURL);
   const body = await response.text();
   const $ = cheerio.load(body);
-
-  // Amount of GTFS files to load. Latest and latest-1 is enough, latest may be in the future and latest-1 would
-  // be the current data.
-  const GET_FIRST_N = 2;
 
   // Retrieve data into gtfsFilesUpsertData{}
   for (let i = 0; i < GET_FIRST_N; i++) {

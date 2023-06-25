@@ -75,7 +75,7 @@ BEGIN
     ELSIF (TG_OP = 'UPDATE') THEN
         INSERT INTO api.vehicle_info_audit
         VALUES (default, old.*, 'UPDATE_OLD'::api.audit_action, now()),
-               (default, old.*, 'UPDATE_NEW'::api.audit_action, now());
+               (default, new.*, 'UPDATE_NEW'::api.audit_action, now());
     ELSIF (TG_OP = 'DELETE') THEN
         INSERT INTO api.vehicle_info_audit
         VALUES (default, old.*, TG_OP::api.audit_action, now());
@@ -176,7 +176,8 @@ SET default_table_access_method = heap;
 
 CREATE TABLE api.api_hits_count (
     date date NOT NULL,
-    hits integer DEFAULT 0 NOT NULL
+    hits integer DEFAULT 0 NOT NULL,
+    CONSTRAINT api_hits_count_pkey PRIMARY KEY (date)
 );
 
 
@@ -190,6 +191,7 @@ CREATE TABLE api.trips_info (
     trip_id numeric NOT NULL primary key,
     active bool NOT NULL DEFAULT false,
     canceled boolean NOT NULL,
+    route text null,
     vehicle_number character varying,
     vehicle_last_updated timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -203,16 +205,14 @@ ALTER TABLE api.trips_info OWNER TO postgres;
 --
 
 CREATE TABLE api.vehicle_info (
-	bus_number text NOT NULL,
+	number text NOT NULL,
 	driver numeric NULL,
 	latitude numeric NULL,
 	longitude numeric NULL,
 	adherence numeric NULL,
 	last_message timestamptz NULL,
-    update_frequency numeric SET DEFAULT 65,
     route text null,
 	updated_on timestamptz NULL DEFAULT CURRENT_TIMESTAMP,
-	next_update timestamptz NULL,
 	CONSTRAINT vehicle_info_pkey PRIMARY KEY (bus_number)
 );
 
@@ -226,13 +226,15 @@ ALTER TABLE api.vehicle_info OWNER TO postgres;
 --
 
 CREATE TABLE api.vehicle_info_audit (
-    audit_entry integer NOT NULL,
-    bus_number text NOT NULL,
+    audit_entry serial NOT NULL,
+    "number" text NOT NULL,
     driver numeric,
     latitude numeric,
     longitude numeric,
     adherence numeric,
     last_message timestamp without time zone,
+    route text,
+    updated_on timestamp with time zone,
     action api.audit_action NOT NULL,
     log_time timestamp with time zone NOT NULL
 );
@@ -244,16 +246,16 @@ ALTER TABLE api.vehicle_info_audit OWNER TO postgres;
 -- Name: vehicle_info_audit_audit_entry_seq; Type: SEQUENCE; Schema: api; Owner: postgres
 --
 
-CREATE SEQUENCE api.vehicle_info_audit_audit_entry_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+-- CREATE SEQUENCE api.vehicle_info_audit_audit_entry_seq
+--     AS integer
+--     START WITH 1
+--     INCREMENT BY 1
+--     NO MINVALUE
+--     NO MAXVALUE
+--     CACHE 1;
 
 
-ALTER TABLE api.vehicle_info_audit_audit_entry_seq OWNER TO postgres;
+-- ALTER TABLE api.vehicle_info_audit_audit_entry_seq OWNER TO postgres;
 
 --
 -- Name: vehicle_info_audit_audit_entry_seq; Type: SEQUENCE OWNED BY; Schema: api; Owner: postgres
@@ -418,24 +420,34 @@ CREATE TABLE gtfs.trips_staging (
 
 ALTER TABLE gtfs.trips_staging OWNER TO postgres;
 --
--- Name: last_stops; Type: VIEW; Schema: gtfs; Owner: postgres
+-- Name: first_and_last_stops_of_routes; Type: VIEW; Schema: gtfs; Owner: postgres
 --
 
-CREATE VIEW gtfs.last_stops AS
- SELECT DISTINCT last_stops_subquery.stop_id
+CREATE OR REPLACE VIEW gtfs.first_and_last_stops_of_routes
+AS SELECT DISTINCT stops.stop_id
    FROM ( SELECT t.trip_headsign,
             st.stop_id,
             t.shape_id,
             st.stop_sequence
-           FROM (gtfs.stop_times st
-             JOIN gtfs.trips t ON ((t.trip_id = st.trip_id)))
-          WHERE (st.stop_sequence = ( SELECT max(st2.stop_sequence) AS max
+           FROM gtfs.stop_times st
+             JOIN gtfs.trips t ON t.trip_id = st.trip_id
+          WHERE st.stop_sequence = (( SELECT max(st2.stop_sequence) AS max
                    FROM gtfs.stop_times st2
-                  WHERE (st.trip_id = st2.trip_id)))
-          GROUP BY t.trip_headsign, st.stop_id, t.shape_id, st.stop_sequence) last_stops_subquery;
+                  WHERE st.trip_id = st2.trip_id))
+          GROUP BY t.trip_headsign, st.stop_id, t.shape_id, st.stop_sequence
+        UNION
+         SELECT t.trip_headsign,
+            st.stop_id,
+            t.shape_id,
+            st.stop_sequence
+           FROM gtfs.stop_times st
+             JOIN gtfs.trips t ON t.trip_id = st.trip_id
+          WHERE st.stop_sequence = (( SELECT min(st2.stop_sequence) AS min
+                   FROM gtfs.stop_times st2
+                  WHERE st.trip_id = st2.trip_id))
+          GROUP BY t.trip_headsign, st.stop_id, t.shape_id, st.stop_sequence) stops;
 
-
-ALTER TABLE gtfs.last_stops OWNER TO postgres;
+ALTER TABLE gtfs.first_and_last_stops_of_routes OWNER TO postgres;
 
 --
 -- Name: routes; Type: TABLE; Schema: gtfs; Owner: postgres
@@ -446,7 +458,10 @@ CREATE TABLE gtfs.routes (
     route_short_name character varying(3),
     route_long_name character varying(47),
     route_desc numeric,
-    route_type numeric
+    route_type numeric,
+    agency_id varchar(255),
+    route_color varchar(255),
+    route_text_color varchar(255)
 );
 
 
@@ -457,7 +472,10 @@ CREATE TABLE gtfs.routes_staging (
     route_short_name character varying(3),
     route_long_name character varying(47),
     route_desc numeric,
-    route_type numeric
+    route_type numeric,
+    agency_id varchar(255),
+    route_color varchar(255),
+    route_text_color varchar(255)
 );
 
 
@@ -566,29 +584,6 @@ ALTER TABLE thebus.active_buses OWNER TO postgres;
 --
 
 ALTER TABLE ONLY api.vehicle_info_audit ALTER COLUMN audit_entry SET DEFAULT nextval('api.vehicle_info_audit_audit_entry_seq'::regclass);
-
-
-
-ALTER TABLE ONLY api.api_hits_count
-    ADD CONSTRAINT api_hits_count_pkey PRIMARY KEY (date);
-
-
---
--- Name: trips_info trips_info_pkey; Type: CONSTRAINT; Schema: api; Owner: postgres
---
-
-ALTER TABLE ONLY api.trips_info
-    ADD CONSTRAINT trips_info_pkey PRIMARY KEY (trip_id);
-
-
---
--- Name: vehicle_info vehicle_info_pk; Type: CONSTRAINT; Schema: api; Owner: postgres
---
-
-ALTER TABLE ONLY api.vehicle_info
-    ADD CONSTRAINT vehicle_info_pk PRIMARY KEY (bus_number, trip);
-
-
 
 
 --

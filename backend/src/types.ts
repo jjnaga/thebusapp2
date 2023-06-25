@@ -30,6 +30,8 @@ export type Arrival = {
   canceled: number;
 };
 
+export type BusesData = {};
+
 export type Arrivals = {
   stop: number;
   timestamp: string;
@@ -51,7 +53,7 @@ export type VehicleInfo = {
   latitude: number;
   longitude: number;
   adherence: number;
-  last_message: Date | null;
+  last_message: Moment;
   route_short_name: string;
   headsign: string;
 };
@@ -61,23 +63,26 @@ export type upsertBusStatus = {
   vehicleNumber: string;
 };
 
-export type BusInfo = {
-  vehicleInfo?: VehicleInfo[];
-  lastUpdated: Date;
-  updateFrequency?: number;
-  inUse?: boolean;
+export type VehicleData = {
+  // I dont trust TheBus to not have a vehcle number that has letters.
+  vehicleNumber: string;
+  isBeingUpdated: boolean;
+  updateFrequency: number;
+  vehicleInfo: VehicleInfo[];
 };
 
 export type getandInsertBusType = {
   vehicleNumber: string;
-  upsertStatus?: boolean;
-  errorMessage?: string;
+  newUpdateFrequency: number;
   vehicle?: any;
 };
 
-export type ActiveBuses = {
+export type _ = {};
+
+export type ActiveBus = {
   vehicleNumber: string;
   lastMessage: Moment;
+  updateFrequency: number;
 };
 
 export type DataBaseQuery = (sql: string, params?: Array<any>, func?: string) => Promise<pg.QueryResult<any>>;
@@ -94,4 +99,25 @@ export type gtfsUnzipPromisesType = {
   date: string;
   status: string;
   data?: { [fileName: string]: string };
+};
+
+export type UpsertBusStatus = {
+  updated: boolean;
+  vehicleInfo: VehicleInfo;
+};
+
+export type UpsertVehicleInfoData = {
+  number: string;
+  driver: number;
+  latitude: number;
+  longitude: number;
+  adherence: number;
+  lastMessage: string;
+  route: string;
+};
+
+export type processVehicleDataType = {
+  vehicleNumber: string;
+  vehicleInfo?: VehicleInfo;
+  error?: any | unknown;
 };

@@ -1,7 +1,7 @@
 // @ts-ignore
 import('log-timestamp');
 import axios, { isCancel, AxiosError, AxiosResponse } from 'axios';
-import { query, getClient } from './db.js';
+import { query, getClient, queryWithPermanentClient, poolDebug } from './db.js';
 import { Arrivals, GetArrivalsJSONReturn, TripInfoTransaction } from './types.js';
 import pLimit from 'p-limit';
 import { XMLParser } from 'fast-xml-parser';
@@ -22,13 +22,6 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
     promises.push(
       new Promise<TripInfoTransaction | null>(async (resolve) => {
         const hashValue = tripsTracker.get(arr.trip);
-        if (arr.vehicle === '290') {
-          console.log('290');
-          console.log('FOUND');
-          console.log(arr);
-          let query = pgp.as.format(upsertTripsInfoSQL(), [arr.trip, arr.canceled, arr.vehicle]);
-          console.log(query);
-        }
 
         // If hashValue is defined, and it's equal to vehicle, we already processed TripID => Vehicle. Skip.
         if (hashValue !== undefined && hashValue === arr.vehicle) {
@@ -50,10 +43,11 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
         try {
           client = await getClient();
         } catch (err) {
-          throw new Error(`Getting Client, insertArrivals, ${arr.trip}/${arr.vehicle}: ${err}`);
+          poolDebug();
+          throw new Error(`Getting Client, insertArrivals: ${err}`);
         }
 
-        client.query(upsertTripsInfoSQL(), [arr.trip, arr.canceled, arr.vehicle], (err, res) => {
+        client.query(upsertTripsInfoSQL(), [arr.trip, arr.canceled, arr.vehicle, arr.route], (err, res) => {
           client.release();
           if (err) {
             throw new Error(`[Arrivals] Error when querying cilent: ` + err);
@@ -70,11 +64,9 @@ const insertArrivals = async (json: Arrivals): Promise<number> => {
     numUpdates++;
 
     console.log(
-      `[arrivals] Trip ${res.data.trip_id} -  ${
-        res.data.previous_vehicle_number === null
-          ? `Vehicle chosen: ${res.data.vehicle_number}`
-          : `Vehicle updated: From ${res.data.previous_vehicle_number} to ${res.data.vehicle_number}`
-      }`
+      `[arrivals] Stop ${String(json.stop).padStart(4, ' ')}: Trip ${
+        res.data.trip_id
+      } -  ${`Vehicle: ${res.data.vehicle_number}`}`
     );
   }
   return numUpdates;
@@ -85,7 +77,7 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
   const url = `http://api.thebus.org/arrivals/?key=${process.env.API_KEY}&stop=${stopID}`;
   const parser = new XMLParser();
 
-  // updateAPICount();
+  queryWithPermanentClient(updateAPICount(), [], `arrivals - ${stopID}`);
   return axios
     .get(url, { responseType: 'text' })
     .then((res: AxiosResponse) => parser.parse(res.data))
@@ -111,9 +103,13 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
     });
 };
 
-// Get bus stops to query.
+/**
+ * Get bus stops to query.
+ *
+ * View 'first_and_last_stops_of_routes' returns distinct first and last stops of all routes.
+ */
 const getAllStops = (): Promise<any[]> => {
-  return query(`SELECT stop_id from gtfs.last_stops`, []).then((res) => {
+  return query(`SELECT stop_id from gtfs.first_and_last_stops_of_routes`, []).then((res) => {
     return res.rows;
   });
 };
@@ -131,6 +127,7 @@ const updateArrivals = (): Promise<boolean> =>
     try {
       client = await getClient();
     } catch (err) {
+      poolDebug();
       throw new Error('UpdateArrivals - Error getting client: ' + err);
     }
 
@@ -144,7 +141,7 @@ const updateArrivals = (): Promise<boolean> =>
         throw new Error('setTripsInfoActiveToFalse: ' + err);
       });
 
-    console.log('[arrivals] Checking Arrivals API for new/updated assigned vehicles.');
+    console.log('[arrivals] Checking Arrivals API for assigned vehicles.');
     const limit = pLimit(18);
     let totalUpdates = 0;
     const stops = await getAllStops();
@@ -158,15 +155,15 @@ const updateArrivals = (): Promise<boolean> =>
     const stopResults = await Promise.all(promises);
     for (let stop of stopResults) {
       totalUpdates += stop.numUpdates;
-      if (stop.numUpdates > 0) {
-        console.log(
-          `[arrivals] Stop ${stop.stopID.padStart(4, ' ')}: ${stop.numUpdates} ${
-            stop.numUpdates === 1 ? 'update' : 'updates'
-          }`
-        );
-      }
+      // if (stop.numUpdates > 0) {
+      //   console.log(
+      //     `[arrivals] Stop ${stop.stopID.padStart(4, ' ')}: ${stop.numUpdates} ${
+      //       stop.numUpdates === 1 ? 'update' : 'updates'
+      //     }`
+      //   );
+      // }
     }
-    console.log(`[arrivals] Total Inserts/Updates: ${totalUpdates}.`);
+    console.log(`[arrivals] Total Active Vehicles: ${totalUpdates}.`);
 
     resolve(true);
   });

@@ -1,7 +1,5 @@
-import { ActiveBuses, gtfsFilesUpsertData } from './types.js';
-import { query, getClient } from './db.js';
-import { error } from 'console';
-import { PoolClient, QueryResult } from 'pg';
+import { UpsertVehicleInfoData, gtfsFilesUpsertData } from './types.js';
+import { queryWithPermanentClient } from './db.js';
 
 export const setTripsInfoActiveToFalse = (): string => {
   let sql = `UPDATE api.trips_info
@@ -14,11 +12,13 @@ export const upsertTripsInfoSQL = (): string => {
     trip_id,
     canceled, 
     vehicle_number, 
+    route,
     active)
   values (
     $1,
     $2::boolean,
     $3,
+    $4,
     true) 
   on conflict (trip_id) 
   do update
@@ -30,9 +30,25 @@ export const upsertTripsInfoSQL = (): string => {
   return sql;
 };
 
-export const upsertBusInfoSQL = (values: string) => {
-  let sql = `INSERT INTO api.vehicle_info (number, driver, latitude, longitude, adherence, last_message, route, next_update)
-  VALUES ${values}
+export const upsertBusInfoSQL = (values: UpsertVehicleInfoData) => {
+  let sql = `INSERT INTO 
+                 api.vehicle_info (
+                     number, 
+                     driver, 
+                     latitude, 
+                     longitude, 
+                     adherence, 
+                     last_message, 
+                     route
+                 )
+  VALUES (
+    '${values.number}', 
+    ${values.driver},
+    ${values.latitude},
+    ${values.longitude},
+    ${values.adherence},
+    '${values.lastMessage}',
+    '${values.route}')
   ON CONFLICT (number) DO
   UPDATE
   SET driver = EXCLUDED.driver,
@@ -41,53 +57,41 @@ export const upsertBusInfoSQL = (values: string) => {
       adherence = EXCLUDED.adherence,
       last_message = EXCLUDED.last_message,
       updated_on = current_timestamp,
-      next_update = EXCLUDED.next_update,
       route = EXCLUDED.route
   `;
   return sql;
 };
 
-export const getAllActiveBuses = (): string => {
-  let sql = `select vehicle_number, last_message
+export const apiCountForToday = (): string => {
+  let sql = `select coalesce((
+              select
+                "hits"
               from
-                (
-                select
-                  vehicle_number,
-                  last_message + interval '1 second' * update_frequency "next_update_on",
-                  last_message
-                from
-                  thebus.active_buses ab
-                left join api.vehicle_info vi on
-                  ab.vehicle_number = vi.number
-                where
-                  route = '3'
-                ) bus_and_next_update
-              where current_timestamp >= next_update_on`;
+                api.api_hits_count ahc
+              where
+                "date" = current_date), 0) "api_count";
+                `;
   return sql;
 };
 
-export const updateAPICount = async () => {
-  let client: PoolClient;
+export const getAllActiveBuses = (): string => {
+  let sql = `select distinct ti.vehicle_number
+              from
+                api.trips_info ti
+              where
+                active = true
+                and ti.route = '3'
+              `;
+  return sql;
+};
 
-  try {
-    client = await getClient();
-  } catch (err) {
-    throw new Error('Getting Client: updateAPICount');
-  }
-
-  client.query(
-    `insert into api.api_hits_count 
+export const updateAPICount = () => {
+  let sql = `insert into api.api_hits_count 
       values (date(timezone('HST', now())), 1)
       on conflict("date") DO
       update 
-      set hits = api.api_hits_count.hits + 1`,
-    (err, res) => {
-      client.release();
-      if (err) {
-        console.error(`[UpdateAPICount] Error when querying cilent: ` + err);
-      }
-    }
-  );
+      set hits = api.api_hits_count.hits + 1`;
+  return sql;
 };
 
 export const copyGTFSTableFromFile = (fileName: string, tableColumns: string) => {

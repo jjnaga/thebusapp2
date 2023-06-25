@@ -67,7 +67,6 @@ export const getBusesData = async () => {
               bus_number
               route
               last_message
-              next_update
               updated_on
             }
           }
