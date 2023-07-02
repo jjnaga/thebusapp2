@@ -213,7 +213,7 @@ CREATE TABLE api.vehicle_info (
 	last_message timestamptz NULL,
     route text null,
 	updated_on timestamptz NULL DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT vehicle_info_pkey PRIMARY KEY (bus_number)
+	CONSTRAINT vehicle_info_pkey PRIMARY KEY (number)
 );
 
 
@@ -654,4 +654,3 @@ CREATE TABLE gtfs.files (
 ;
 
 alter table gtfs.files owner to postgres;
-

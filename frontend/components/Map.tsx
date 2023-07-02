@@ -2,24 +2,10 @@
 import { useLoadScript, GoogleMap, MarkerF, CircleF, LoadScript } from '@react-google-maps/api';
 import { Vehicle } from '@/lib/types';
 
-// interface Props {
-//   busData?: any;
-// }
-
-export const revalidate = 60;
-
 // Google Maps
-export default async function Map(props: any) {
-  // This is so ugly.
-  let vehicleData = props.busData.data.api_vehicle_info;
+export const Map = (props) => {
+  let vehicleData = props.data.api_vehicle_info;
   console.log(vehicleData);
-
-  // if (!vehicleInfo) {
-  //   console.log('Map - no data');
-  // } else {
-  //   console.log('Map - data');
-  //   console.log(vehicleInfo);
-  // }
 
   const containerStyle = {
     width: '100%',
@@ -33,7 +19,6 @@ export default async function Map(props: any) {
   return (
     <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}>
       <GoogleMap mapContainerStyle={containerStyle} id="map" center={center} zoom={12}>
-        {/* Child components, such as markers, info windows, etc. */}
         <>
           {vehicleData.map((vehicle) => {
             const { bus_number: busNumber, latitude: lat, longitude: lng } = vehicle;
@@ -48,4 +33,4 @@ export default async function Map(props: any) {
       </GoogleMap>
     </LoadScript>
   );
-}
+};
