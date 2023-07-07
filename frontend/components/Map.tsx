@@ -4,6 +4,7 @@ import { Vehicle } from '@/lib/types';
 
 // Google Maps
 export const Map = (props) => {
+  console.log(props);
   let vehicleData = props.data.api_vehicle_info;
   console.log(vehicleData);
 
@@ -16,6 +17,7 @@ export const Map = (props) => {
     lat: 21.315590993778137,
     lng: -157.85889586252094,
   };
+
   return (
     <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}>
       <GoogleMap mapContainerStyle={containerStyle} id="map" center={center} zoom={12}>
@@ -26,7 +28,6 @@ export const Map = (props) => {
               lat,
               lng,
             };
-
             return <MarkerF key={busNumber} position={coordinates} />;
           })}
         </>

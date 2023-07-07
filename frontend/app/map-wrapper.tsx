@@ -1,6 +1,6 @@
 'use client';
 import { Suspense } from 'react';
-import { useReadQuery, useBackgroundQuery } from '@apollo/experimental-nextjs-app-support/ssr';
+import { useQuery, useSuspenseQuery } from '@apollo/experimental-nextjs-app-support/ssr';
 import { gql, useMutation } from '@apollo/client';
 import { QueryReference } from '@apollo/client/react/cache/QueryReference';
 import { useState, useCallback } from 'react';
@@ -22,17 +22,20 @@ const query = gql`
 `;
 
 export const MapWrapper = () => {
-  const [queryRef] = useBackgroundQuery(query);
+  let { data } = useSuspenseQuery(query);
+  console.log('did this work?', data);
+  // let data = '';
 
   return (
     <Suspense fallback={<>Loading....</>}>
-      <Map queryRef={queryRef} />
+      <Map data={data} />
     </Suspense>
   );
 };
 
-const Map = ({ queryRef }) => {
-  const { data } = useReadQuery(queryRef);
+// @ts-ignore
+const Map = ({ data }) => {
+  // const { data } = useReadQuery(queryRef);
   // const [showResults, setShowResults] = useState(false);
 
   // const [mutate, { loading: mutationLoading }] = useMutation(AnswerPollDocument);
