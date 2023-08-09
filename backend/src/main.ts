@@ -47,9 +47,8 @@ const arrivals = async () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  let startTime = moment();
-
   // Variables
+  let startTime = moment();
   let busesAdded = 0;
   let busesRemoved = 0;
   // Variables

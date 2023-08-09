@@ -23,7 +23,6 @@ const query = gql`
 
 export const MapWrapper = () => {
   let { data } = useSuspenseQuery(query);
-  console.log('did this work?', data);
   // let data = '';
 
   return (
