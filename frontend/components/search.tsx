@@ -1,22 +1,42 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useMapContext } from './MapProvider';
+import Test from './Test';
+
 export default function Search() {
+  const { route, setRoute } = useMapContext();
+
+  // onEffect(() => {});
+  async function searchRoute(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    try {
+      const response = await fetch('/api/routes/');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  useEffect(() => {}, []);
+
   return (
-    <div className="w-screen bg-slate-500">
-      <form>
-        <div className="relative">
-          <input
-            type="search"
-            id="default-search"
-            className="block w-full p-4 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            placeholder="Search Bus Routes..."
-            required
-          ></input>
-          <button
-            type="submit"
-            className="text-white absolute right-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-          >
-            Search
-          </button>
-        </div>
+    <div className="container max-w-xl border border-sky-500 p-3">
+      <form className="relative" onSubmit={searchRoute}>
+        <i className="absolute fa fa-search text-gray-400 top-5 left-4"></i>
+        <label className="sr-only" htmlFor="route">
+          Search Routes
+        </label>
+        <input
+          onChange={(event) => setRoute(event.target.value)}
+          placeholder="Search Routes"
+          className="bg-white h-14 w-full px-12 rounded-lg focus:outline-none hover:cursor-pointer text-black"
+          type="text"
+          value={route}
+        />
+        <button className="absolute top-4 right-5 text-black" type="submit">
+          Search
+        </button>
       </form>
     </div>
   );

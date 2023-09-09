@@ -1,0 +1,21 @@
+'use client';
+
+import { ClientMapContextProps, ReactChildren } from '@/lib/types';
+import { createContext, useContext, useState } from 'react';
+
+// Create the context.
+const MapContext = createContext({} as ClientMapContextProps);
+
+export function useMapContext() {
+  return useContext(MapContext);
+}
+
+export default function MapProvider({ children }: ReactChildren) {
+  const [route, setRoute] = useState('3');
+  const [coordinates, setCoordinates] = useState({
+    lat: 21.315590993778137,
+    lng: -157.85889586252094,
+  });
+
+  return <MapContext.Provider value={{ route, setRoute, coordinates, setCoordinates }}>{children}</MapContext.Provider>;
+}

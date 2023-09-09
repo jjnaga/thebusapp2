@@ -2,6 +2,9 @@ import { ApolloWrapper } from '@/lib/apollo-wrapper';
 import './globals.css';
 import Header from '@/components/shared/Header';
 import Footer from '@/components/shared/Footer';
+import MapProvider from '@/components/MapProvider';
+// Script component
+import Script from 'next/script';
 
 // styles the main html tag
 const styles = {
@@ -10,13 +13,19 @@ const styles = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+
   return (
     <html>
-      <body className="h-100">
+      <head>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
+        <Script src={src} />
+      </head>
+      <body>
         <Header />
-        <main className="flex flex-row">
+        <MapProvider>
           <ApolloWrapper>{children}</ApolloWrapper>
-        </main>
+        </MapProvider>
         <Footer />
       </body>
     </html>

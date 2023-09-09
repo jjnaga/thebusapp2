@@ -4,7 +4,7 @@ import { useQuery, useSuspenseQuery } from '@apollo/experimental-nextjs-app-supp
 import { gql, useMutation } from '@apollo/client';
 import { QueryReference } from '@apollo/client/react/cache/QueryReference';
 import { useState, useCallback } from 'react';
-import { Map as MapInner } from '@/components/map';
+import { Map as MapInner } from '@/components/Map';
 
 const query = gql`
   query vehicle_info_query {
@@ -22,12 +22,13 @@ const query = gql`
 `;
 
 export const MapWrapper = () => {
-  let { data } = useSuspenseQuery(query);
+  // let { data } = useSuspenseQuery(query);
   // let data = '';
 
   return (
     <Suspense fallback={<>Loading....</>}>
-      <Map data={data} />
+      {/* <Map data={data} /> */}
+      <Map />
     </Suspense>
   );
 };

@@ -3,7 +3,7 @@ import config from '@/lib/config';
 
 export default function Header() {
   return (
-    <header className="text-center sm:text-left text-lg">
+    <header className="flex text-center sm:text-left text-lg">
       <h1>
         <Link href="/">{config.siteName}</Link>
       </h1>
