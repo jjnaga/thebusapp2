@@ -1,6 +1,6 @@
 'use client';
 
-import { ClientMapContextProps, ReactChildren } from '@/lib/types';
+import { BusStop, ClientMapContextProps, ReactChildren } from '@/lib/types';
 import { createContext, useContext, useState } from 'react';
 
 // Create the context.
@@ -17,5 +17,19 @@ export default function MapProvider({ children }: ReactChildren) {
     lng: -157.85889586252094,
   });
 
-  return <MapContext.Provider value={{ route, setRoute, coordinates, setCoordinates }}>{children}</MapContext.Provider>;
+  const temporaryBusStop: BusStop = {
+    stopID: -1,
+    lat: 0,
+    lng: 0,
+    buses: undefined,
+  };
+  const [selectedBusStop, setSelectedBusStop] = useState(temporaryBusStop);
+
+  return (
+    // TODO
+    // @ts-ignore
+    <MapContext.Provider value={{ route, setRoute, coordinates, setCoordinates, selectedBusStop, setSelectedBusStop }}>
+      {children}
+    </MapContext.Provider>
+  );
 }
