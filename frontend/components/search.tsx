@@ -42,8 +42,8 @@ export default function Search() {
   }, [selectedBusStop]);
 
   return (
-    <div className="container max-w-xl border border-sky-500 p-3">
-      <form className="relative" onSubmit={searchRoute}>
+    <div className="min-w-xl border border-sky-500 p-3 overflow-scroll">
+      <form className="relative overflow-visible" onSubmit={searchRoute}>
         <i className="absolute fa fa-search text-gray-400 top-5 left-4"></i>
         <label className="sr-only" htmlFor="route">
           Search Routes
@@ -60,7 +60,7 @@ export default function Search() {
         </button>
         <p>{selectedBusStop?.stopID}</p>
       </form>
-      {selectedBusStop.buses && <IncomingBuses buses={selectedBusStop.buses} />}
+      {selectedBusStop.buses && selectedBusStop.buses.map((bus) => <Card key={bus.id} bus={bus} />)}
     </div>
   );
 }

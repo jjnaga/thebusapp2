@@ -13,7 +13,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 export default async function Home() {
   return (
-    <div className="h-screen flex justify-center">
+    <div className="flex-1 flex justify-center overflow-scroll">
       <Search />
       <MapWrapper />
     </div>
