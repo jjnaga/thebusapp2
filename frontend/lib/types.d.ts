@@ -36,6 +36,10 @@ export interface ClientMapContextProps {
   setCoordinates: (coordiantes: Coordiantes) => void;
   selectedBusStop: BusStop;
   setSelectedBusStop: (selectedBusStop: BusStop) => void;
+  selectedBus: IncomingBusData | undefined;
+  setSelectedBus: (selectedBus: IncomingBusData) => void;
+  map: google.maps.Map | undefined;
+  setMap: (map: google.maps.Map) => void;
 }
 
 export interface ReactChildren {
@@ -58,14 +62,15 @@ export type RawIncomingBusData = {
   canceled: any;
 };
 
-export interface IncomingBusData {
+export type IncomingBusData = {
   id: number;
   vehicle: number | null;
   routeNumber: number;
   routeName: string;
   arrivalTime: Moment;
-  minutesToArrival: number;
-}
+  latitude: number;
+  longitude: number;
+};
 
 export type BusStop = {
   lat: number;

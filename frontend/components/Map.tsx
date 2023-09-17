@@ -1,8 +1,8 @@
 'use client';
-import { GoogleMap, MarkerF, RectangleF } from '@react-google-maps/api';
+import { GoogleMap, MarkerF, RectangleF, InfoWindowF } from '@react-google-maps/api';
 import { Bounds, BusStop, Vehicle } from '@/lib/types';
 import { useEffect, useState } from 'react';
-import { useMapContext } from './MapProvider';
+import { useMapContext } from './DataProvider';
 import { useSuspenseQuery } from '@apollo/experimental-nextjs-app-support/ssr';
 import { gql, useLazyQuery } from '@apollo/client';
 export const dynamic = 'force-dynamic';
@@ -30,13 +30,15 @@ export const Map = () => {
   // let vehicleData = props.data.api_vehicle_info;
   const [center, setCenter] = useState({
     lat: 21.315590993778137,
-    lng: -157.85889586252094,
+    lng: -157.99298091611027,
   });
 
   const [bounds, setBounds] = useState<Bounds>();
   const [marker, setMarker] = useState({});
+  const { map, setMap } = useMapContext();
   const { coordinates, setCoordinates } = useMapContext();
   const { selectedBusStop, setSelectedBusStop } = useMapContext();
+  const { selectedBus, setSelectedBus } = useMapContext();
 
   const containerStyle = {
     width: '100%',
@@ -54,7 +56,15 @@ export const Map = () => {
     };
 
     setBounds(newBounds);
+    if (map != undefined) {
+      console.log('fitting bounds');
+      map.fitBounds(newBounds);
+    }
   }, [coordinates]);
+
+  useEffect(() => {
+    console.log(map);
+  }, [map]);
 
   useEffect(() => {
     if (bounds !== undefined) {
@@ -62,6 +72,18 @@ export const Map = () => {
       getData({ variables: { north, south, east, west } });
     }
   }, [bounds]);
+
+  useEffect(() => {
+    if (selectedBus?.vehicle != undefined) {
+      console.log('make the middle');
+      const newCenter = {
+        lat: (center.lat + selectedBus.latitude) / 2,
+        lng: (center.lng + selectedBus.longitude) / 2,
+      };
+
+      map!.panTo(newCenter);
+    }
+  }, [selectedBus]);
 
   // Get Location of user
   useEffect(() => {
@@ -72,12 +94,12 @@ export const Map = () => {
   }, []);
 
   return (
-    <GoogleMap mapContainerStyle={containerStyle} id="map" center={center} zoom={15}>
+    <GoogleMap mapContainerStyle={containerStyle} id="map" center={center} zoom={11} onLoad={(map) => setMap(map)}>
       <MarkerF key="person" position={center} />
       {data &&
         data.gtfs_stops.map((busStop: BusStop) => {
           const { lat, lng, stopID } = busStop;
-          const latLng: google.maps.LatLngLiteral = { lat, lng };
+          const latLng = { lat, lng };
 
           return (
             <MarkerF
@@ -85,10 +107,19 @@ export const Map = () => {
               position={latLng}
               onClick={() => {
                 setSelectedBusStop(busStop);
+                map!.panTo(latLng);
               }}
             />
           );
         })}
+      {/* Active Incoming Bus  */}
+      {selectedBus?.vehicle != undefined && (
+        <MarkerF position={{ lat: selectedBus.latitude, lng: selectedBus.longitude }}>
+          {/* <InfoWindowF>
+            <span>lmao</span>
+          </InfoWindowF> */}
+        </MarkerF>
+      )}
       {bounds !== undefined && <RectangleF bounds={bounds!} />}
     </GoogleMap>
   );

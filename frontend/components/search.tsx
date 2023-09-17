@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useMapContext } from './MapProvider';
+import { useMapContext } from './DataProvider';
 import { XMLParser } from 'fast-xml-parser';
 import { IncomingBusData, RawIncomingBusData } from '@/lib/types';
 import { fetchBusStopData } from '@/lib/functions';
@@ -11,6 +11,7 @@ import IncomingBuses from './IncomingBuses';
 export default function Search() {
   const { route, setRoute } = useMapContext();
   const { selectedBusStop, setSelectedBusStop } = useMapContext();
+  const { selectedBus, setSelectedBus } = useMapContext();
   const parser = new XMLParser();
 
   // onEffect(() => {});
@@ -41,6 +42,10 @@ export default function Search() {
     console.log(selectedBusStop);
   }, [selectedBusStop]);
 
+  useEffect(() => {
+    console.log(selectedBus);
+  }, [selectedBus]);
+
   return (
     <div className="min-w-xl border border-sky-500 p-3 overflow-scroll">
       <form className="relative overflow-visible" onSubmit={searchRoute}>
@@ -58,7 +63,10 @@ export default function Search() {
         <button className="absolute top-4 right-5 text-black" type="submit">
           Search
         </button>
-        <p>{selectedBusStop?.stopID}</p>
+        <div className="flex flex-row p-3">
+          <p>{`Stop ID: ${selectedBusStop?.stopID}`}</p>
+          <p className="ml-auto">{`Vehicle Number: ${selectedBus?.vehicle}`}</p>
+        </div>
       </form>
       {selectedBusStop.buses && selectedBusStop.buses.map((bus) => <Card key={bus.id} bus={bus} />)}
     </div>

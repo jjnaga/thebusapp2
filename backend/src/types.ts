@@ -46,6 +46,14 @@ export type VehicleAPI = {
   vehicle?: VehicleInfo[];
 };
 
+export type VehicleData = {
+  // I dont trust TheBus to not have a vehcle number that has letters.
+  vehicleNumber: string;
+  isBeingUpdated: boolean;
+  updateFrequency: number;
+  vehicleInfo: VehicleInfo[];
+};
+
 export type VehicleInfo = {
   number: string;
   trip: number | string;
@@ -61,14 +69,6 @@ export type VehicleInfo = {
 export type upsertBusStatus = {
   upsertStatus: boolean;
   vehicleNumber: string;
-};
-
-export type VehicleData = {
-  // I dont trust TheBus to not have a vehcle number that has letters.
-  vehicleNumber: string;
-  isBeingUpdated: boolean;
-  updateFrequency: number;
-  vehicleInfo: VehicleInfo[];
 };
 
 export type getandInsertBusType = {

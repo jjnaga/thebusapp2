@@ -12,7 +12,7 @@ export async function fetchBusStopData(busStopID: number) {
     const json = parser.parse(xml);
     console.log(json);
     const stopData: IncomingBusData[] = json.stopTimes.arrival.map((rawArrival: RawIncomingBusData) => {
-      const {
+      let {
         vehicle,
         id,
         route: routeNumber,
@@ -20,9 +20,16 @@ export async function fetchBusStopData(busStopID: number) {
         stopTime,
         date,
         estimated: minutesToArrival,
+        latitude,
+        longitude,
       } = rawArrival;
 
       const arrivalTime = moment(`${date} ${stopTime}`);
+
+      // Set vehicle to undefined if it is not set in API
+      if (vehicle == '???') {
+        vehicle = undefined;
+      }
 
       const arrival: IncomingBusData = {
         id,
@@ -30,7 +37,8 @@ export async function fetchBusStopData(busStopID: number) {
         arrivalTime,
         routeNumber,
         routeName,
-        minutesToArrival,
+        latitude,
+        longitude,
       };
 
       return arrival;

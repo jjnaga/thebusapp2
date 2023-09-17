@@ -2,7 +2,7 @@ import { ApolloWrapper } from '@/lib/apollo-wrapper';
 import './globals.css';
 import Header from '@/components/shared/Header';
 import Footer from '@/components/shared/Footer';
-import MapProvider from '@/components/MapProvider';
+import MapProvider from '@/components/DataProvider';
 // Script component
 import Script from 'next/script';
 
