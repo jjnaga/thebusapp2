@@ -82,6 +82,21 @@ export const Map = () => {
       };
 
       map!.panTo(newCenter);
+
+      const { lat, lng } = coordinates;
+
+      selectedBusStop.lat;
+
+      const newBounds = {
+        north: Math.max(selectedBusStop.lat, selectedBus.latitude) + DEFAULT_RECTANGLE_OFFSET,
+        south: Math.min(selectedBusStop.lat, selectedBus.latitude) - DEFAULT_RECTANGLE_OFFSET,
+        east: Math.max(selectedBusStop.lng, selectedBus.longitude) + DEFAULT_RECTANGLE_OFFSET,
+        west: Math.min(selectedBusStop.lng, selectedBus.longitude) - DEFAULT_RECTANGLE_OFFSET,
+      };
+
+      if (map != undefined) {
+        map.fitBounds(newBounds);
+      }
     }
   }, [selectedBus]);
 
