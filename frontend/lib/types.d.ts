@@ -77,4 +77,5 @@ export type BusStop = {
   lng: number;
   stopID: number;
   buses: IncomingBusData[] | undefined;
+  lastUpdated?: Moment;
 };

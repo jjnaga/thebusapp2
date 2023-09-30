@@ -1,4 +1,5 @@
 'use client';
+import moment from 'moment';
 
 import { useState, useEffect } from 'react';
 import { useMapContext } from './DataProvider';
@@ -7,6 +8,7 @@ import { IncomingBusData, RawIncomingBusData } from '@/lib/types';
 import { fetchBusStopData } from '@/lib/functions';
 import Card from './Card';
 import IncomingBuses from './IncomingBuses';
+import { Schedule } from './Schedule';
 
 export default function Search() {
   const { route, setRoute } = useMapContext();
@@ -28,23 +30,17 @@ export default function Search() {
   useEffect(() => {
     const updateSelectedBusStop = async () => {
       // -1 is the default value. Don't run if set to -1, as it is the initial load.
+      console.log(selectedBusStop);
       if (selectedBusStop.stopID !== -1) {
         const busData = await fetchBusStopData(selectedBusStop.stopID);
-        setSelectedBusStop({ ...selectedBusStop, buses: busData });
+        setSelectedBusStop({ ...selectedBusStop, buses: busData, lastUpdated: moment() });
+        console.log(selectedBusStop);
       }
     };
 
     updateSelectedBusStop();
     // @ts-ignore
   }, [selectedBusStop.stopID]);
-
-  useEffect(() => {
-    console.log(selectedBusStop);
-  }, [selectedBusStop]);
-
-  useEffect(() => {
-    console.log(selectedBus);
-  }, [selectedBus]);
 
   return (
     <div className="min-w-xl border border-sky-500 p-3 overflow-scroll">
@@ -68,7 +64,7 @@ export default function Search() {
           <p className="ml-auto">{`Vehicle Number: ${selectedBus?.vehicle}`}</p>
         </div>
       </form>
-      {selectedBusStop.buses && selectedBusStop.buses.map((bus) => <Card key={bus.id} bus={bus} />)}
+      {selectedBusStop.buses && <Schedule incomingBuses={selectedBusStop.buses} />}
     </div>
   );
 }

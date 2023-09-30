@@ -81,11 +81,7 @@ export const Map = () => {
         lng: (center.lng + selectedBus.longitude) / 2,
       };
 
-      map!.panTo(newCenter);
-
       const { lat, lng } = coordinates;
-
-      selectedBusStop.lat;
 
       const newBounds = {
         north: Math.max(selectedBusStop.lat, selectedBus.latitude) + DEFAULT_RECTANGLE_OFFSET,
@@ -94,9 +90,10 @@ export const Map = () => {
         west: Math.min(selectedBusStop.lng, selectedBus.longitude) - DEFAULT_RECTANGLE_OFFSET,
       };
 
-      if (map != undefined) {
-        map.fitBounds(newBounds);
-      }
+      map!.panTo(newCenter);
+      map!.fitBounds(newBounds);
+
+      // map!.panToBounds(newBounds);
     }
   }, [selectedBus]);
 
