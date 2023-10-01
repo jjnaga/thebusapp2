@@ -64,7 +64,7 @@ export default function Search() {
           <p className="ml-auto">{`Vehicle Number: ${selectedBus?.vehicle}`}</p>
         </div>
       </form>
-      {selectedBusStop.buses && <Schedule incomingBuses={selectedBusStop.buses} />}
+      <Schedule incomingBuses={selectedBusStop.buses} />
     </div>
   );
 }

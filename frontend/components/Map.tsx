@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useMapContext } from './DataProvider';
 import { useSuspenseQuery } from '@apollo/experimental-nextjs-app-support/ssr';
 import { gql, useLazyQuery } from '@apollo/client';
+import test from 'node:test';
 export const dynamic = 'force-dynamic';
 
 const query = gql`
@@ -73,6 +74,11 @@ export const Map = () => {
     }
   }, [bounds]);
 
+  // useEffect(() => {
+  //   selectedBus == undefined ?
+
+  // }, [selectedBus]);
+
   useEffect(() => {
     if (selectedBus?.vehicle != undefined) {
       console.log('make the middle');
@@ -109,11 +115,14 @@ export const Map = () => {
     <GoogleMap mapContainerStyle={containerStyle} id="map" center={center} zoom={11} onLoad={(map) => setMap(map)}>
       <MarkerF key="person" position={center} />
       {data &&
-        data.gtfs_stops.map((busStop: BusStop) => {
+        data.gtfs_stops.reduce((results, busStop: BusStop) => {
+          if (selectedBus !== undefined && selectedBusStop.stopID != busStop.stopID) {
+            return results;
+          }
           const { lat, lng, stopID } = busStop;
           const latLng = { lat, lng };
 
-          return (
+          results.push(
             <MarkerF
               key={stopID}
               position={latLng}
@@ -123,7 +132,10 @@ export const Map = () => {
               }}
             />
           );
-        })}
+
+          return results;
+        }, [])}
+
       {/* Active Incoming Bus  */}
       {selectedBus?.vehicle != undefined && (
         <MarkerF position={{ lat: selectedBus.latitude, lng: selectedBus.longitude }}>

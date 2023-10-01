@@ -4,7 +4,7 @@ import moment from 'moment';
 import { useState, useEffect } from 'react';
 
 type ScheduleProps = {
-  incomingBuses: IncomingBusData[];
+  incomingBuses?: IncomingBusData[];
 };
 
 export const Schedule = (props: ScheduleProps) => {
@@ -26,9 +26,7 @@ export const Schedule = (props: ScheduleProps) => {
           {time.format('h:mm:ss a')}
         </button>
       </>
-      {incomingBuses.map((bus) => (
-        <Card key={bus.id} bus={bus} />
-      ))}
+      {incomingBuses && incomingBuses.map((bus) => <Card key={bus.id} bus={bus} />)}
     </>
   );
 };
