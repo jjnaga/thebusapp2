@@ -363,7 +363,7 @@ CREATE TABLE gtfs.stop_times (
 ALTER TABLE gtfs.stop_times OWNER TO postgres;
 
 CREATE TABLE gtfs.stop_times_staging (
-    trip_id numeric,
+    trip_id numeric
     arrival_time character varying(8),
     departure_time character varying(8),
     stop_id character varying(10),
@@ -390,7 +390,7 @@ CREATE TABLE gtfs.trips (
     trip_headsign character varying(40),
     direction_id numeric,
     block_id numeric,
-    shape_id character varying(13),
+    shape_id character varying(25),
     trip_headsign_short character varying(33),
     apc_trip_id numeric,
     display_code character varying(8),
@@ -409,7 +409,7 @@ CREATE TABLE gtfs.trips_staging (
     trip_headsign character varying(40),
     direction_id numeric,
     block_id numeric,
-    shape_id character varying(13),
+    shape_id character varying(25),
     trip_headsign_short character varying(33),
     apc_trip_id numeric,
     display_code character varying(8),
@@ -487,7 +487,7 @@ ALTER TABLE gtfs.routes_staging OWNER TO postgres;
 --
 
 CREATE TABLE gtfs.shapes (
-    shape_id character varying(13),
+    shape_id character varying(25),
     shape_pt_lat numeric,
     shape_pt_lon numeric,
     shape_pt_sequence numeric,
@@ -498,7 +498,7 @@ CREATE TABLE gtfs.shapes (
 ALTER TABLE gtfs.shapes OWNER TO postgres;
 
 CREATE TABLE gtfs.shapes_staging (
-    shape_id character varying(13),
+    shape_id character varying(25),
     shape_pt_lat numeric,
     shape_pt_lon numeric,
     shape_pt_sequence numeric

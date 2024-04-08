@@ -1,0 +1,1 @@
+export const DEFAULT_BUS_UPDATE_FREQUENCY = 15;
