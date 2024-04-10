@@ -188,7 +188,7 @@ export const gtfsFilesUpsert = (gtfsData: gtfsFilesUpsertData) => {
     VALUES 
       (${Object.values(gtfsData).reduce((accumulator: any, current: any, index: number) => {
         if (index === 0) {
-          accumulator += `to_date('${current}', 'DD Month YYYY'),`
+          accumulator += `'${current}',`
           return accumulator;
         }
 

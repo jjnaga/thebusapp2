@@ -88,12 +88,13 @@
     "@types/node": "^18.14.6",
     "console-stamp": "^3.1.1",
     "delay": "^6.0.0",
-    "got": "^13.0.0"
+    "got": "^13.0.0",
+    "ts-node": "^10.9.2"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "ts-node-esm src/main.ts 2>&1 | tee main.log",
+    "start": "node --loader ts-node/esm src/main.ts",
     "lint": "next lint",
     "backend": "ts-node backend/main.ts"
   },

@@ -82,6 +82,13 @@ const getBusArrivalsJSON = (stopID: string): Promise<GetArrivalsJSONReturn> => {
     .get(url, { responseType: 'text' })
     .then((res: AxiosResponse) => parser.parse(res.data))
     .then(async (json: any) => {
+
+      // Catch errors.
+      if (typeof json.stopTimes !== undefined && 'errorMessage' in json.stopTimes) {
+        console.error(`JSON ERROR: ${json.stopTimes['errorMessage']}`);
+        return { stopID: stopID, numUpdates: 0 };
+      }
+
       // Skip insertArrivals() if there are no incoming busses for a stop.
       if ('arrival' in json.stopTimes === false) {
         return { stopID: stopID, numUpdates: 0 };

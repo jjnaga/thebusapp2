@@ -363,7 +363,7 @@ CREATE TABLE gtfs.stop_times (
 ALTER TABLE gtfs.stop_times OWNER TO postgres;
 
 CREATE TABLE gtfs.stop_times_staging (
-    trip_id numeric
+    trip_id numeric,
     arrival_time character varying(8),
     departure_time character varying(8),
     stop_id character varying(10),
@@ -423,7 +423,7 @@ ALTER TABLE gtfs.trips_staging OWNER TO postgres;
 -- Name: first_and_last_stops_of_routes; Type: VIEW; Schema: gtfs; Owner: postgres
 --
 
-CREATE OR REPLACE VIEW gtfs.first_and_last_stops_of_routes
+CREATE OR REPLACE materialized VIEW gtfs.first_and_last_stops_of_routes
 AS SELECT DISTINCT stops.stop_id
    FROM ( SELECT t.trip_headsign,
             st.stop_id,
