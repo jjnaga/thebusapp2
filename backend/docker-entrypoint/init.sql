@@ -423,7 +423,7 @@ ALTER TABLE gtfs.trips_staging OWNER TO postgres;
 -- Name: first_and_last_stops_of_routes; Type: VIEW; Schema: gtfs; Owner: postgres
 --
 
-CREATE OR REPLACE materialized VIEW gtfs.first_and_last_stops_of_routes
+CREATE MATERIALIZED VIEW gtfs.first_and_last_stops_of_routes
 AS SELECT DISTINCT stops.stop_id
    FROM ( SELECT t.trip_headsign,
             st.stop_id,
