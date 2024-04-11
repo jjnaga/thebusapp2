@@ -98,7 +98,7 @@ export const copyGTFSTableFromFile = (fileName: string, tableColumns: string) =>
   let sql = `COPY gtfs.${fileName}_staging (
     ${tableColumns}           
   )
-  from '/docker-entrypoint-initdb.d/${fileName}_staging.csv' 
+  from '/tmp/${fileName}_staging.csv' 
   with (format csv, delimiter ',')`;
   return sql;
 };

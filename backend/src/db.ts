@@ -1,7 +1,7 @@
 import pg from 'pg';
 
 let config = {
-  host: 'localhost',
+  host: 'postgres',
   user: 'postgres',
   password: 'postgrespassword',
   idleTimeoutMillis: 30000,
