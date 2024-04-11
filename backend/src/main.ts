@@ -110,6 +110,11 @@ const gtfs = async () => {
   console.log('[main] GTFS Start.');
   locks.gtfsRunning = true;
   await runGTFS();
+
+  console.log('Refreshing view');
+  await query('REFRESH MATERIALIZED VIEW gtfs.first_and_last_stops_of_routes', []);
+  console.log('Refreshing view: DONE');
+
   console.log('[main] GTFS Done');
   locks.gtfsRunning = false;
 

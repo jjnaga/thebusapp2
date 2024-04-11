@@ -7,7 +7,7 @@ import { getClient, query } from './db.js';
 
 // Amount of GTFS files to load. Latest and latest-1 is enough, latest may be in the future and latest-1 would
 // be the current data.
-const GET_FIRST_N = 1;
+// const GET_FIRST_N = 1;
 
 // multithreaded = false is slower and blocks the UI thread if the files
 // inside are compressed, but it can be faster if they are not.
@@ -26,38 +26,30 @@ let links: any = [];
  * Check GTFS website for any changes and update gtfs.files if needed
  */
 const checkGTFSWebsiteForUpdates = async () => {
-  const gtfsURL = 'https://transitfeeds.com/p/thebus-honolulu/57';
-  const baseURL = 'https://transitfeeds.com';
-
+  const gtfsURL = 'https://www.thebus.org/transitdata/production/google_transit.zip';
   const gtfsData: gtfsFilesUpsertData[] = [];
-  console.log('Checking transitfeeds.com for GTFS data.');
-  const response = await fetch(gtfsURL);
-  const body = await response.text();
-  const $ = cheerio.load(body);
+  // const baseURL = 'https://transitfeeds.com';
+
+  // console.log('Checking transitfeeds.com for GTFS data.');
+  // const response = await fetch(gtfsURL);
+  // const body = await response.text();
+  // const $ = cheerio.load(body);
 
   // Retrieve data into gtfsFilesUpsertData{}
-  for (let i = 0; i < GET_FIRST_N; i++) {
-    let gtfs = {} as gtfsFilesUpsertData;
+  // for (let i = 0; i < GET_FIRST_N; i++) {
+  let gtfs = {} as gtfsFilesUpsertData;
 
-    gtfs.date = $(`.table > tbody > tr:nth-child(${i + 1}) > td:nth-child(1)`)
-      .text()
-      .trim();
 
-    gtfs.version = $(`.table > tbody > tr:nth-child(${i + 1}) > td:nth-child(2)`)
-      .text()
-      .trim();
+  const today = new Date();
+  gtfs.date = today.toISOString().split('T')[0];
 
-    gtfs.link =
-      baseURL +
-      $(`.table > tbody > tr:nth-child(${i + 1}) > td:nth-child(5) > a`)
-        .filter(function () {
-          return $(this).text().trim() === 'Download';
-        })
-        .attr('href');
-    gtfs.file = '';
+  gtfs.version = "0";
 
-    gtfsData.push(gtfs);
-  }
+  gtfs.link = gtfsURL;
+  gtfs.file = '';
+
+  gtfsData.push(gtfs);
+  // }
 
   // Run upsert into gtfs.files
   let gtfsPromises: Promise<any>[] = [];
@@ -192,7 +184,7 @@ const runGTFS = async () => {
 
             // Attempt to remove file first in case it previously exists.
             try {
-              fs.unlinkSync(`./docker-entrypoint/${fileName}_staging.csv`);
+              fs.unlinkSync(`/tmp/${fileName}_staging.csv`);
 
               console.log(
                 `[GTFS] ${gtfs.version} - ${fileName + ' '.repeat(MAX_SPACES - fileName.length)}Previous CSV deleted`
@@ -201,7 +193,11 @@ const runGTFS = async () => {
               // @ts-ignore
               if (error.code !== 'ENOENT') console.log(error);
             }
-            await fs.promises.writeFile(`./docker-entrypoint/${fileName}_staging.csv`, csvString);
+
+            // Write file to /tmp folder.
+            await fs.promises.writeFile(`/tmp/${fileName}_staging.csv`, csvString);
+
+
           } catch (err: any) {
             throw new Error(err);
           }
@@ -240,7 +236,7 @@ const runGTFS = async () => {
             });
 
           try {
-            fs.unlinkSync(`./docker-entrypoint/${fileName}_staging.csv`);
+            fs.unlinkSync(`/tmp/${fileName}_staging.csv`);
 
             console.log(`[GTFS] ${gtfs.version} - ${fileName + ' '.repeat(MAX_SPACES - fileName.length)}CSV deleted`);
           } catch (error) {
