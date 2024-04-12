@@ -28,6 +28,18 @@ services:
       - "5050:80"
     depends_on:
       - postgres
+  graphql-engine:
+    image: hasura/graphql-engine:v2.25.1
+    ports:
+      - '8080:8080'
+    restart: always
+    environment:
+      ## postgres database to store Hasura metadata
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
+      HASURA_GRAPHQL_DEV_MODE: 'true'
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
 volumes:
   postgres_data:
   docker-entrypoint:
