@@ -3,6 +3,8 @@
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { useSuspenseQuery } from '@apollo/client';
+import { GET_ALL_VEHICLE_INFO_QUERY } from '@/graphql/queries/apiVehicleInfo';
 
 const containerStyle = {
   width: '100%',
@@ -19,6 +21,12 @@ const Map = () => {
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!
   });
+
+  const { data } = useSuspenseQuery(GET_ALL_VEHICLE_INFO_QUERY);
+
+  useEffect(() => {
+    console.log(data);
+  }, [data]);
 
   const [map, setMap] = useState(null);
   const [location, setLocation] = useState({ lat: null, lng: null });

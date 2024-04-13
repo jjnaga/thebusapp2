@@ -5,6 +5,7 @@ import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ApolloWrapper from '@/utils/apollo/ApolloWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,13 +22,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex flex-col h-screen">
-          <Header />
-          <div className="flex-grow">{children}</div>
-          <Footer />
-
-          {/* <ToastContainer /> */}
-        </div>
+        <ApolloWrapper>
+          <div className="flex flex-col h-screen">
+            <Header />
+            <div className="flex-grow">{children}</div>
+            <ToastContainer />
+            <Footer />
+          </div>
+        </ApolloWrapper>
       </body>
     </html>
   );
