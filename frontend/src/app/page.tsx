@@ -1,11 +1,7 @@
-import Map from '@/components/Map';
+import Map from '@/components/map/Map';
 
 const Home = () => {
-  return (
-    <>
-      <Map />
-    </>
-  );
+  return <>{<Map />}</>;
 };
 
 export default Home;

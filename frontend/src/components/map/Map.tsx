@@ -3,8 +3,11 @@
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { useSuspenseQuery } from '@apollo/client';
-import { GET_ALL_VEHICLE_INFO_QUERY } from '@/graphql/queries/apiVehicleInfo';
+// import { useSuspenseQuery } from '@apollo/client';
+// import { GET_ALL_VEHICLE_INFO_QUERY } from '@/graphql/queries/apiVehicleInfo';
+import BusMarker from './BusMarker';
+import useBuses from '@/hooks/useBusInfo';
+import { SingleBusInfo } from '@/utils/types';
 
 const containerStyle = {
   width: '100%',
@@ -17,16 +20,14 @@ const center = {
 };
 
 const Map = () => {
-  const { isLoaded } = useJsApiLoader({
+  const { data, isLoading, error } = useBuses();
+
+  const { mapsIsLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!
   });
 
-  const { data } = useSuspenseQuery(GET_ALL_VEHICLE_INFO_QUERY);
-
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
+  // const { data } = useSuspenseQuery(GET_ALL_VEHICLE_INFO_QUERY);
 
   const [map, setMap] = useState(null);
   const [location, setLocation] = useState({ lat: null, lng: null });
@@ -61,7 +62,7 @@ const Map = () => {
     }
   }, []);
 
-  return isLoaded ? (
+  return mapsIsLoaded ? (
     <div id="google-map" className="h-full w-full">
       <GoogleMap
         mapContainerStyle={containerStyle}
@@ -69,7 +70,14 @@ const Map = () => {
         zoom={12}
         onLoad={onLoad}
         onUnmount={onUnmount}
-      />
+      >
+        {/* {data &&
+          data.status === 'success' &&
+          data.map((singleBusInfo: SingleBusInfo) => {
+            const {} = singleBusInfo;
+            return <BusMarker key={={center} />;
+          })} */}
+      </GoogleMap>
     </div>
   ) : (
     <>Not Loaded</>

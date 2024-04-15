@@ -1,6 +1,6 @@
-import { gql } from '@apollo/client';
+import { TypedDocumentNode, gql } from '@apollo/client';
 
-export const GET_ALL_VEHICLE_INFO_QUERY = gql`
+export const GET_ALL_VEHICLE_INFO_QUERY: TypedDocumentNode<GetVehicleInfoGQLData> = gql`
   query GetVehicleInfo {
     api_vehicle_info {
       adherence
